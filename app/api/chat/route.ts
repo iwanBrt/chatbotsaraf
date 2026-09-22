@@ -5,18 +5,32 @@ interface MessageHistoryItem {
   content: string;
 }
 
-const SYSTEM_INSTRUCTION = `Kamu adalah "Neuron", asisten edukatif anatomi cerdas berbasis AI.
-Tugas utamamu adalah menjadi pendamping pembelajaran sains dan biologi yang profesional, akurat, dan mudah dipahami.
+const SYSTEM_INSTRUCTION = `Kamu adalah sistem asisten edukatif anatomi cerdas berbasis AI.
+Tugas utamamu adalah merespons pertanyaan siswa dan memilih karakter anatomi yang paling relevan untuk menjawab.
+
+Daftar Karakter yang Tersedia:
+- "neuron" (Neuron Asisten Umum - gunakan ini jika pertanyaan bersifat umum atau tidak spesifik ke bagian tertentu)
+- "badansel" (Badan Sel)
+- "batangotak" (Batang Otak)
+- "dendrit" (Dendrit)
+- "ganglia" (Ganglia)
+- "neurit" (Neurit / Akson)
+- "otakbesar" (Otak Besar / Cerebrum)
+- "otakkecil" (Otak Kecil / Cerebellum)
+- "sarafkranial" (Saraf Kranial)
+- "sarafspinal" (Saraf Spinal)
+- "sumsum" (Sumsum Tulang Belakang)
 
 ATURAN WAJIB:
-1. Jawab pertanyaan dengan profesional, ringkas, dan sangat informatif.
-2. Gunakan gaya bahasa baku namun mudah dicerna (ed-tech style).
-3. JANGAN PERNAH menggunakan istilah kekanak-kanakan, emoji, atau seruan berlebihan (seperti Bzzzt, Zap).
-4. Panjang jawaban HARUS ringkas, maksimal 2 hingga 3 kalimat saja.
-5. JANGAN PERNAH gunakan format markdown seperti ** * # - atau tautan URL. Teks akan dibacakan langsung oleh suara audio.
-6. Jawab dalam Bahasa Indonesia yang sopan dan terstruktur.
-7. JANGAN sertakan proses berpikir, analisis, atau reasoning di jawabanmu. Langsung berikan jawaban akhir!
-8. Jika ditanya hal di luar sains/tubuh manusia, arahkan kembali dengan profesional ke topik anatomi.`;
+1. Jawab dengan profesional, ringkas, maksimal 2-3 kalimat.
+2. Gaya bahasa baku, ramah, dan mendidik. JANGAN gunakan emoji atau seruan kekanak-kanakan.
+3. JANGAN gunakan markdown seperti ** * # -. Teks ini akan langsung dibacakan oleh suara TTS.
+4. Jawab HANYA dalam format JSON valid dengan struktur:
+   {
+     "character": "id_karakter",
+     "reply": "jawaban teks di sini"
+   }
+5. Pilih id_karakter HANYA dari daftar karakter yang tersedia di atas berdasarkan bagian anatomi mana yang relevan dengan pertanyaan.`;
 
 export async function POST(req: NextRequest) {
   let userMessage = "";
@@ -49,6 +63,7 @@ export async function POST(req: NextRequest) {
     ];
 
     let reply = "";
+    let character = "neuron";
 
     // === UTAMA: OpenRouter API dengan google/gemma-4-26b-a4b-it:free ===
     const openRouterApiKey = process.env.OPENROUTER_API_KEY?.trim();
@@ -81,9 +96,20 @@ export async function POST(req: NextRequest) {
 
         if (openRouterRes.ok) {
           const data = await openRouterRes.json();
-          const rawContent = data.choices?.[0]?.message?.content || "";
-          reply = cleanModelOutput(rawContent);
-          console.log("[Chat] OpenRouter OK, reply length:", reply.length);
+          let rawContent = data.choices?.[0]?.message?.content || "";
+          
+          // Bersihkan markdown markdown json jika ada
+          rawContent = rawContent.replace(/```json\n?/g, "").replace(/```/g, "").trim();
+          
+          try {
+            const parsed = JSON.parse(rawContent);
+            reply = cleanModelOutput(parsed.reply || "");
+            character = parsed.character || "neuron";
+            console.log("[Chat] OpenRouter OK, character:", character, "reply length:", reply.length);
+          } catch (e) {
+            console.warn("[Chat] OpenRouter failed to parse JSON:", rawContent);
+            reply = cleanModelOutput(rawContent); // Fallback to raw text
+          }
         } else {
           const errData = await openRouterRes.json().catch(() => ({}));
           console.warn(`[Chat] OpenRouter HTTP ${openRouterRes.status}:`, errData?.error?.message || "unknown error");
@@ -115,12 +141,22 @@ export async function POST(req: NextRequest) {
           const geminiRes = await ai.models.generateContent({
             model: "gemini-3.6-flash",
             contents: fullPrompt,
+            config: {
+              responseMimeType: "application/json",
+            }
           });
 
           const rawGemini = geminiRes.text?.trim() || "";
           if (rawGemini) {
-            reply = cleanModelOutput(rawGemini);
-            console.log("[Chat] Gemini SDK OK, reply length:", reply.length);
+            try {
+              const parsed = JSON.parse(rawGemini);
+              reply = cleanModelOutput(parsed.reply || "");
+              character = parsed.character || "neuron";
+              console.log("[Chat] Gemini SDK OK, character:", character, "reply length:", reply.length);
+            } catch (e) {
+              console.warn("[Chat] Gemini failed to parse JSON:", rawGemini);
+              reply = cleanModelOutput(rawGemini);
+            }
           }
         } catch (gemErr) {
           console.warn("[Chat] Gemini fallback gagal:", gemErr instanceof Error ? gemErr.message : gemErr);
@@ -130,9 +166,10 @@ export async function POST(req: NextRequest) {
 
     if (!reply) {
       reply = "Koneksi ke server terputus. Silakan ajukan pertanyaan Anda kembali.";
+      character = "neuron";
     }
 
-    return NextResponse.json({ reply });
+    return NextResponse.json({ reply, character });
   } catch (error: unknown) {
     console.error("Error generating response:", error);
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan.";
@@ -149,7 +186,7 @@ export async function POST(req: NextRequest) {
       fallbackReply = "Saat tidur, otak memproses dan mengkonsolidasi informasi serta ingatan yang terjadi sepanjang hari. Aktivitas saraf ini yang kita kenal sebagai fenomena mimpi.";
     }
 
-    return NextResponse.json({ warning: "Fallback mode.", error: errorMessage, reply: fallbackReply }, { status: 200 });
+    return NextResponse.json({ warning: "Fallback mode.", error: errorMessage, reply: fallbackReply, character: "neuron" }, { status: 200 });
   }
 }
 

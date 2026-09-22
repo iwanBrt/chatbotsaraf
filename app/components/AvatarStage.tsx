@@ -8,6 +8,8 @@ interface AvatarStageProps {
   isSpeaking: boolean;
   isLoading: boolean;
   currentText: string;
+  videoUrl?: string;
+  characterName?: string;
   onStopSpeaking: () => void;
   onReplaySpeech: () => void;
 }
@@ -16,6 +18,8 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
   isSpeaking,
   isLoading,
   currentText,
+  videoUrl = "/neuron-talk.mp4",
+  characterName = "Neuron",
   onStopSpeaking,
   onReplaySpeech,
 }) => {
@@ -66,16 +70,24 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
         
         {/* Video Avatar */}
         <video
+          key={videoUrl}
           ref={videoRef}
-          src="/neuron-talk.mp4"
+          src={videoUrl}
           loop
           muted
           playsInline
           preload="auto"
           onLoadedMetadata={handleLoadedMetadata}
-          className="w-full h-full object-cover object-center transform scale-105 rounded-[2rem]"
+          className="w-full h-full object-cover object-center transform scale-105 rounded-[2rem] transition-opacity duration-500 animate-fade-in"
           style={{ mixBlendMode: 'multiply' }}
         />
+
+        {/* Label Nama Karakter */}
+        <div className="absolute top-12 left-2 z-20 pointer-events-none animate-fade-in">
+          <div className="px-2.5 py-1 rounded-md bg-zinc-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wide uppercase shadow-sm">
+            {characterName}
+          </div>
+        </div>
 
         {/* Status Indikator Minimalis */}
         <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-auto">

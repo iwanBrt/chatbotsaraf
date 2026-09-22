@@ -15,12 +15,27 @@ interface ChatMessage {
 const INITIAL_GREETING =
   "Selamat datang di Neuron Interactive. Saya adalah asisten anatomi Anda. Ada yang bisa saya bantu terkait anatomi dan sistem saraf tubuh manusia hari ini?";
 
+const CHARACTER_MAP: Record<string, { name: string; video: string }> = {
+  neuron: { name: "Neuron", video: "/neuron-talk.mp4" },
+  badansel: { name: "Badan Sel", video: "/Badan Sel.mp4" },
+  batangotak: { name: "Batang Otak", video: "/BatangOtak.mp4" },
+  dendrit: { name: "Dendrit", video: "/Dendrit.mp4" },
+  ganglia: { name: "Ganglia", video: "/Ganglia.mp4" },
+  neurit: { name: "Neurit (Akson)", video: "/neurit.mp4" },
+  otakbesar: { name: "Otak Besar (Cerebrum)", video: "/OtakBesar(cerebrum).mp4" },
+  otakkecil: { name: "Otak Kecil (Cerebellum)", video: "/OtakKecil(Cerebellum).mp4" },
+  sarafkranial: { name: "Saraf Kranial", video: "/Saraf Kranial.mp4" },
+  sarafspinal: { name: "Saraf Spinal", video: "/Saraf Spinal.mp4" },
+  sumsum: { name: "Sumsum Tulang Belakang", video: "/Sumsum Tulang Belakang.mp4" },
+};
+
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentReply, setCurrentReply] = useState(INITIAL_GREETING);
+  const [currentCharacter, setCurrentCharacter] = useState("neuron");
   const [hasStarted, setHasStarted] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,9 +103,11 @@ export default function Home() {
       const data = await res.json();
       const reply =
         data.reply ||
-        "Bzzzt! Wah, sambungan neuronku sedikit tersentak. Coba tanyakan lagi ya Sobat Cerdas!";
+        "Maaf, sambungan saya sedikit terganggu. Coba tanyakan lagi ya!";
+      const newChar = data.character || "neuron";
 
       setCurrentReply(reply);
+      setCurrentCharacter(newChar);
       setMessages((prev) => [...prev, { role: "model", content: reply }]);
 
       // Putar suara respon Neuron & sync video loop
@@ -127,6 +144,8 @@ export default function Home() {
       onError: () => setIsSpeaking(false),
     });
   };
+
+  const currentCharData = CHARACTER_MAP[currentCharacter] || CHARACTER_MAP["neuron"];
 
   return (
     <main
@@ -173,6 +192,8 @@ export default function Home() {
             isSpeaking={isSpeaking}
             isLoading={isLoading}
             currentText={currentReply}
+            videoUrl={currentCharData.video}
+            characterName={currentCharData.name}
             onStopSpeaking={handleStopSpeaking}
             onReplaySpeech={handleReplaySpeech}
           />
