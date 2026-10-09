@@ -1,62 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { LEARNING_CASES, LearningCase, DialogStep } from "@/app/data/learningCases";
 
 interface MessageHistoryItem {
   role: "user" | "model";
   content: string;
 }
-
-const getSystemInstruction = (phase: string) => {
-  return `Kamu adalah asisten edukasi anatomi sistem saraf interaktif berbasis AI.
-Tugas utamamu adalah mendampingi siswa belajar anatomi melalui studi kasus klinis/keseharian, mengevaluasi jawaban mereka, dan memilih karakter visual 3D yang relevan.
-
-DAFTAR KARAKTER DAN FOKUS ANATOMI:
-- "otakbesar" (Otak Besar / Cerebrum - berpikir, memori, bahasa/bicara, motorik sadar)
-- "otakkecil" (Otak Kecil / Cerebellum - keseimbangan tubuh, postur, koordinasi gerak halus)
-- "batangotak" (Batang Otak - fungsi vital otonom: pernapasan, denyut jantung, refleks batuk/menelan)
-- "sarafkranial" (Saraf Kranial - 12 pasang saraf kepala: penglihatan, pendengaran, penciuman, ekspresi wajah)
-- "sumsum" (Sumsum Tulang Belakang - penghantar impuls utama dan pusat gerak refleks cepat)
-- "sarafspinal" (Saraf Spinal - 31 pasang saraf tepi tulang belakang ke anggota tubuh)
-- "badansel" (Badan Sel Saraf - pusat metabolisme neuron dan pemrosesan informasi sel)
-- "dendrit" (Dendrit - percabangan penerima impuls/sinyal dari sel saraf lain)
-- "neurit" (Neurit / Akson - serabut panjang penghantar impuls listrik dengan selubung mielin)
-- "ganglia" (Ganglia - kelompok badan sel saraf di luar sistem saraf pusat)
-- "neuron" (Neuron - pengantar umum dan pemandu)
-
-ATURAN PERCAKAPAN DAN EVALUASI:
-1. JIKA SISWA MEMILIH TOPIK ATAU MEMINTA GANTI TOPIK KE ORGAN LAIN:
-   - Pilih karakter yang sesuai dengan organ/bagian yang diminta siswa.
-   - Buka jawaban WAJIB dengan kalimat:
-     "Untuk mempelajari topik ini, kita akan menggunakan studi kasus berikut: [skenario kasus nyata/klinis pendek 1-2 kalimat]. [Pertanyaan pemantik untuk dianalisis siswa]?"
-   - JANGAN berikan jawaban atas kasus tersebut.
-
-2. JIKA SISWA MEMINTA STUDI KASUS LAIN (contoh: "coba study kasus lain", "ganti kasus", "lanjut"):
-   - Jika siswa TIDAK menyebut organ/bagian baru: KARAKTER TETAP SAMA DENGAN SAAT INI (JANGAN ganti karakter). Berikan skenario studi kasus baru yang berbeda seputar organ yang sama.
-   - Jika siswa MENYEBUTKAN organ baru secara spesifik (misal: "coba batang otak", "mau sumsum tulang belakang"): Ganti id_karakter ke organ baru tersebut dan berikan kasusnya.
-   - Buka jawaban WAJIB dengan kalimat:
-     "Untuk mempelajari topik ini, kita akan menggunakan studi kasus berikut: [skenario kasus baru]. [Pertanyaan pemantik]?"
-
-3. JIKA SISWA MEMBERIKAN TANGGAPAN / MENJAWAB STUDI KASUS:
-   - Karakter HARUS TETAP karakter organ yang sedang dibahas saat ini.
-   - Evaluasi jawaban siswa secara spesifik:
-     * JIKA TEPAT: Berikan apresiasi hangat (misalnya: "Tepat sekali!", "Analisis yang sangat bagus!"), lalu berikan 1 kalimat penjelas konsep intinya.
-     * JIKA KURANG TEPAT: Katakan dengan sopan bahwa jawabannya kurang tepat, lalu langsung jelaskan fakta dan konsep yang sebenarnya secara ringkas dan jelas.
-   - Di akhir respons evaluasi, SELALU tutup dengan pertanyaan:
-     "Apakah kamu ingin mencoba studi kasus lain, atau ada pertanyaan seputar topik ini?"
-
-4. JIKA SISWA BERTANYA LAGI TENTANG TOPIK YANG SEDANG DIBAHAS:
-   - Lanjutkan menjawab pertanyaan siswa secara informatif, ramah, dan mendalam dengan karakter yang sedang aktif.
-
-ATURAN FORMAT WAJIB:
-1. Jawab dengan profesional, ramah, ringkas (maksimal 2-3 kalimat).
-2. Gaya bahasa baku, komunikatif, mendidik. JANGAN gunakan emoji.
-3. JANGAN gunakan format markdown seperti ** * # -.
-4. Jawab HANYA dalam format JSON valid:
-   {
-     "character": "id_karakter",
-     "reply": "jawaban teks di sini"
-   }
-5. id_karakter HANYA boleh salah satu dari daftar di atas.`;
-};
 
 export async function POST(req: NextRequest) {
   let userMessage = "";
@@ -67,11 +15,15 @@ export async function POST(req: NextRequest) {
       history = [],
       phase = "idle",
       currentCharacter = "neuron",
+      caseId,
+      stepNumber = 1,
     } = body as {
       message: string;
       history?: MessageHistoryItem[];
       phase?: string;
       currentCharacter?: string;
+      caseId?: string;
+      stepNumber?: number;
     };
     userMessage = typeof message === "string" ? message : "";
 
@@ -84,6 +36,115 @@ export async function POST(req: NextRequest) {
 
     // Batasi memori riwayat ke 6 pesan terakhir
     const recentHistory = history.slice(-6);
+
+    // =========================================================================
+    // PRIORITAS 1: Naskah Pembelajaran Berbasis Kasus (update.md)
+    // =========================================================================
+    // 1. Cek jika permintaan adalah untuk MEMULAI salah satu dari 5 Kasus:
+    const lowerMsg = userMessage.toLowerCase();
+    const matchedInitialCase =
+      LEARNING_CASES.find((c) => c.id === caseId) ||
+      LEARNING_CASES.find((c) => lowerMsg.includes(c.id.toLowerCase())) ||
+      LEARNING_CASES.find((c) => lowerMsg.includes(c.title.toLowerCase())) ||
+      (lowerMsg.includes("andi") ? LEARNING_CASES[0] : undefined) ||
+      (lowerMsg.includes("doni") ? LEARNING_CASES[1] : undefined) ||
+      (lowerMsg.includes("budi") ? LEARNING_CASES[2] : undefined) ||
+      (lowerMsg.includes("rina") ? LEARNING_CASES[3] : undefined) ||
+      (lowerMsg.includes("bayu") ? LEARNING_CASES[4] : undefined) ||
+      (lowerMsg.includes("kasus 1") ? LEARNING_CASES[0] : undefined) ||
+      (lowerMsg.includes("kasus 2") ? LEARNING_CASES[1] : undefined) ||
+      (lowerMsg.includes("kasus 3") ? LEARNING_CASES[2] : undefined) ||
+      (lowerMsg.includes("kasus 4") ? LEARNING_CASES[3] : undefined) ||
+      (lowerMsg.includes("kasus 5") ? LEARNING_CASES[4] : undefined);
+
+    const isStartingCase =
+      userMessage.startsWith("Mulai kasus:") ||
+      userMessage.startsWith("Saya ingin membahas kasus:") ||
+      userMessage.startsWith("Saya ingin membahas topik:") ||
+      userMessage.startsWith("Pilih kasus:") ||
+      (matchedInitialCase && phase === "topic_selection");
+
+    if (matchedInitialCase && isStartingCase) {
+      const step1 = matchedInitialCase.steps[0];
+      return NextResponse.json({
+        reply: step1.chatbotQuestion,
+        character: matchedInitialCase.character,
+        caseId: matchedInitialCase.id,
+        stepNumber: 1,
+        totalSteps: matchedInitialCase.steps.length,
+        stepTitle: step1.title,
+        roleName: matchedInitialCase.roleName,
+        isCompleted: false,
+      });
+    }
+
+    // 2. Cek jika sesi sedang dalam kasus aktif (update.md role-play):
+    const activeCase = LEARNING_CASES.find((c) => c.id === caseId);
+    if (activeCase) {
+      const currentStep =
+        activeCase.steps.find((s) => s.stepNumber === stepNumber) || activeCase.steps[0];
+
+      // Cek apakah siswa meminta ganti kasus:
+      if (isAskingForAnotherCase(userMessage, recentHistory)) {
+        const currIndex = LEARNING_CASES.findIndex((c) => c.id === activeCase.id);
+        const nextCase = LEARNING_CASES[(currIndex + 1) % LEARNING_CASES.length];
+        return NextResponse.json({
+          reply: `Baik, mari kita beralih ke investigasi kasus berikutnya: ${nextCase.title}.\n\n${nextCase.steps[0].chatbotQuestion}`,
+          character: nextCase.character,
+          caseId: nextCase.id,
+          stepNumber: 1,
+          totalSteps: nextCase.steps.length,
+          stepTitle: nextCase.steps[0].title,
+          roleName: nextCase.roleName,
+          isCompleted: false,
+        });
+      }
+
+      // Evaluasi jawaban siswa terhadap langkah saat ini:
+      const isCorrect = evaluateAnswerAgainstStep(userMessage, currentStep);
+
+      if (isCorrect) {
+        if (currentStep.stepNumber < activeCase.steps.length) {
+          const nextStep = activeCase.steps[currentStep.stepNumber]; // index is stepNumber
+          const combinedReply = `${currentStep.reinforcementIfCorrect}\n\n${nextStep.chatbotQuestion}`;
+          return NextResponse.json({
+            reply: combinedReply,
+            character: activeCase.character,
+            caseId: activeCase.id,
+            stepNumber: nextStep.stepNumber,
+            totalSteps: activeCase.steps.length,
+            stepTitle: nextStep.title,
+            roleName: activeCase.roleName,
+            isCompleted: false,
+          });
+        } else {
+          // Tahap 4 Selesai (Tuntas):
+          const completionReply = `${currentStep.reinforcementIfCorrect}\n\n${currentStep.closingText || ""}\n\nSelamat! Kamu telah menyelesaikan penyelidikan kasus ini. Apakah kamu ingin mencoba kasus investigasi lainnya?`;
+          return NextResponse.json({
+            reply: completionReply,
+            character: activeCase.character,
+            caseId: activeCase.id,
+            stepNumber: 4,
+            totalSteps: activeCase.steps.length,
+            stepTitle: currentStep.title,
+            roleName: activeCase.roleName,
+            isCompleted: true,
+          });
+        }
+      } else {
+        // Jawaban siswa belum tepat -> berikan petunjuk terarah dari update.md:
+        return NextResponse.json({
+          reply: currentStep.hintIfWrong,
+          character: activeCase.character,
+          caseId: activeCase.id,
+          stepNumber: currentStep.stepNumber,
+          totalSteps: activeCase.steps.length,
+          stepTitle: currentStep.title,
+          roleName: activeCase.roleName,
+          isCompleted: false,
+        });
+      }
+    }
 
     // Format pesan sesuai standar OpenAI chat completion
     const systemInstruction = getSystemInstruction(phase);
@@ -557,4 +618,128 @@ function cleanModelOutput(text: string): string {
   cleaned = cleaned.replace(/\*([^*]+)\*/g, "$1");
 
   return cleaned.trim();
+}
+
+function evaluateAnswerAgainstStep(answer: string, step: DialogStep): boolean {
+  const lower = answer.toLowerCase().trim();
+
+  // Jika jawaban terlalu pendek atau menyatakan tidak tahu
+  if (lower.length < 2) return false;
+  if (
+    lower.includes("tidak tahu") ||
+    lower.includes("gatau") ||
+    lower.includes("nggak tau") ||
+    lower.includes("kurang tahu") ||
+    lower.includes("belum tahu") ||
+    lower.includes("ngga tau") ||
+    lower === "entah" ||
+    lower === "skip"
+  ) {
+    return false;
+  }
+
+  // Cek kata kunci yang cocok dari daftar keywords
+  const matched = step.keywords.filter((kw) => lower.includes(kw.toLowerCase()));
+
+  // 1. Kasus 1 Step 1 (Definisi neuron & sel saraf)
+  if (step.keywords.includes("neuron") && step.keywords.includes("sel saraf")) {
+    const hasCell = lower.includes("sel") || lower.includes("neuron");
+    const hasFunction =
+      lower.includes("sinyal") ||
+      lower.includes("informasi") ||
+      lower.includes("impuls") ||
+      lower.includes("hantar") ||
+      lower.includes("kirim") ||
+      lower.includes("terima") ||
+      lower.includes("pesan") ||
+      lower.includes("komunikasi");
+    if (hasCell && hasFunction) return true;
+    if (lower === "sel saraf" || lower === "neuron" || lower.includes("sel saraf atau neuron")) return true;
+  }
+
+  // 2. Kasus 1 Step 2 (3 bagian neuron: dendrit, badan sel, akson)
+  if (step.keywords.includes("dendrit") && step.keywords.includes("badan sel")) {
+    let partCount = 0;
+    if (lower.includes("dendrit")) partCount++;
+    if (lower.includes("badan sel") || lower.includes("soma")) partCount++;
+    if (lower.includes("akson") || lower.includes("neurit")) partCount++;
+    if (partCount >= 2) return true;
+    if (partCount >= 1 && (lower.includes("sinyal") || lower.includes("terima") || lower.includes("potensial aksi"))) return true;
+  }
+
+  // 3. Kasus 1 Step 3 (Fungsi mielin: percepat impuls / saltatori)
+  if (step.keywords.includes("saltatori") || (step.keywords.includes("mielin") && step.keywords.includes("cepat"))) {
+    if (
+      lower.includes("cepat") ||
+      lower.includes("mempercepat") ||
+      lower.includes("lambat") ||
+      lower.includes("melambat") ||
+      lower.includes("hambat") ||
+      lower.includes("terganggu") ||
+      lower.includes("saltatori")
+    ) {
+      return true;
+    }
+  }
+
+  // 4. Kasus 2 Step 2 (Ion natrium & kalium)
+  if (step.keywords.includes("natrium") && step.keywords.includes("kalium")) {
+    if ((lower.includes("natrium") || lower.includes("na")) && (lower.includes("kalium") || lower.includes("k"))) {
+      return true;
+    }
+    if (lower.includes("depolarisasi") || lower.includes("repolarisasi")) return true;
+  }
+
+  // 5. Kasus 3 Step 1 (Sinapsis)
+  if (step.keywords.includes("sinapsis")) {
+    if (lower.includes("sinaps") || lower.includes("sinapsis") || lower.includes("celah")) return true;
+  }
+
+  // 6. Kasus 4 Step 1 (Gerak sadar vs refleks)
+  if (step.keywords.includes("refleks") && step.keywords.includes("sadar")) {
+    if (
+      (lower.includes("refleks") || lower.includes("otomatis")) &&
+      (lower.includes("sadar") || lower.includes("sengaja") || lower.includes("beda") || lower.includes("tidak sama"))
+    ) {
+      return true;
+    }
+    if (lower.includes("refleks") || lower.includes("otomatis")) return true;
+  }
+
+  // Kecocokan minimal 2 kata kunci substansial
+  if (matched.length >= 2) return true;
+
+  // Jika ada 1 kata kunci penting dan penjelasan siswa cukup memadai (>= 3 kata)
+  if (matched.length >= 1 && lower.split(/\s+/).length >= 3) return true;
+
+  return false;
+}
+
+function getSystemInstruction(phase: string): string {
+  return `Kamu adalah asisten edukasi anatomi sistem saraf interaktif berbasis AI.
+Tugas utamamu adalah mendampingi siswa belajar anatomi melalui studi kasus klinis/keseharian, mengevaluasi jawaban mereka, dan memilih karakter visual 3D yang relevan.
+
+DAFTAR KARAKTER DAN FOKUS ANATOMI:
+- "otakbesar" (Otak Besar / Cerebrum - berpikir, memori, bahasa/bicara, motorik sadar)
+- "otakkecil" (Otak Kecil / Cerebellum - keseimbangan tubuh, postur, koordinasi gerak halus)
+- "batangotak" (Batang Otak - fungsi vital otonom: pernapasan, denyut jantung, refleks batuk/menelan)
+- "sarafkranial" (Saraf Kranial - 12 pasang saraf kepala: penglihatan, pendengaran, penciuman, ekspresi wajah)
+- "sumsum" (Sumsum Tulang Belakang - penghantar impuls utama dan pusat gerak refleks cepat)
+- "sarafspinal" (Saraf Spinal - 31 pasang saraf tepi tulang belakang ke anggota tubuh)
+- "badansel" (Badan Sel Saraf - pusat metabolisme neuron dan pemrosesan informasi sel)
+- "dendrit" (Dendrit - percabangan penerima impuls/sinyal dari sel saraf lain)
+- "neurit" (Neurit / Akson - serabut panjang penghantar impuls listrik dengan selubung mielin)
+- "ganglia" (Ganglia - kelompok badan sel saraf di luar sistem saraf pusat)
+- "neuron" (Neuron - pengantar umum dan pemandu)
+
+ATURAN FORMAT WAJIB:
+1. Jawab dengan profesional, ramah, ringkas (maksimal 2-3 kalimat).
+2. Gaya bahasa baku, komunikatif, mendidik. JANGAN gunakan emoji.
+3. JANGAN gunakan format markdown seperti ** * # -.
+4. Jawab HANYA dalam format JSON valid:
+   {
+     "character": "id_karakter",
+     "reply": "jawaban teks di sini"
+   }
+5. id_karakter HANYA boleh salah satu dari daftar di atas.`;
 }

@@ -20,7 +20,7 @@ Chatbot:
 Tidak apa-apa, mari kita pikirkan bersama. Tubuh kita dapat merasakan sentuhan dan memberikan respons terhadap rangsangan. Sel khusus apa yang membantu menyampaikan informasi tersebut?
 
 Jawaban siswa setelah petunjuk:
-Sel saraf atau neuron.
+Sel saraf atau neuron. (jika salah , terangkan lagi)
 
 Chatbot memberikan penguatan:
 Benar! Neuron merupakan sel yang memiliki fungsi khusus dalam komunikasi sistem saraf.
