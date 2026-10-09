@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Send, Brain, Sparkles, MessageSquare, History, X, RefreshCw } from "lucide-react";
 import { AvatarStage } from "./components/AvatarStage";
-import { SuggestionChips } from "./components/SuggestionChips";
 import { WelcomeModal } from "./components/WelcomeModal";
 import { speakNeuronSpeech, stopNeuronSpeech } from "./utils/speech";
 
@@ -13,7 +12,14 @@ interface ChatMessage {
 }
 
 const INITIAL_GREETING =
-  "Selamat datang di Neuron Interactive. Saya adalah asisten anatomi Anda. Ada yang bisa saya bantu terkait anatomi dan sistem saraf tubuh manusia hari ini?";
+  "Halo! Saya Neuron. Mari kita mulai studi kasus anatomi hari ini. Silakan pilih topik mana yang ingin kamu bahas terlebih dahulu!";
+
+const TOPICS = [
+  { id: "otakbesar", title: "Fungsi Otak Besar" },
+  { id: "batangotak", title: "Batang Otak & Saraf Kranial" },
+  { id: "sumsum", title: "Saraf Tulang Belakang" },
+  { id: "badansel", title: "Struktur Sel Saraf" }
+];
 
 const CHARACTER_MAP: Record<string, { name: string; video: string }> = {
   neuron: { name: "Neuron", video: "/neuron-talk.mp4" },
@@ -36,6 +42,7 @@ export default function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [currentReply, setCurrentReply] = useState(INITIAL_GREETING);
   const [currentCharacter, setCurrentCharacter] = useState("neuron");
+  const [learningPhase, setLearningPhase] = useState<"topic_selection" | "case_study" | "completed">("topic_selection");
   const [hasStarted, setHasStarted] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -97,6 +104,8 @@ export default function Home() {
         body: JSON.stringify({
           message: query,
           history: updatedMessages.slice(-6), // Jendela memori 6 pesan terakhir
+          phase: learningPhase,
+          currentCharacter: currentCharacter,
         }),
       });
 
@@ -109,6 +118,10 @@ export default function Home() {
       setCurrentReply(reply);
       setCurrentCharacter(newChar);
       setMessages((prev) => [...prev, { role: "model", content: reply }]);
+
+      if (learningPhase === "topic_selection") {
+        setLearningPhase("case_study");
+      }
 
       // Putar suara respon Neuron & sync video loop
       speakNeuronSpeech(reply, {
@@ -199,23 +212,54 @@ export default function Home() {
           />
         </div>
 
-        {/* Bottom Section: Suggestion Chips & Floating Chat Input */}
+        {/* Bottom Section: Chat Input or Topic Selection */}
         <footer className="w-full flex flex-col gap-3 pt-2">
-          {/* Suggestion Chips */}
-          <SuggestionChips
-            onSelect={(prompt) => handleSendMessage(prompt)}
-            disabled={isLoading || isSpeaking}
-          />
+          {learningPhase === "topic_selection" ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-semibold text-zinc-500 text-center uppercase tracking-wider mb-1">
+                Pilih Topik Diskusi
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {TOPICS.map((topic) => (
+                  <button
+                    key={topic.id}
+                    onClick={() => handleSendMessage(`Saya ingin membahas topik: ${topic.title}`)}
+                    disabled={isLoading || isSpeaking}
+                    className="px-3 py-3 rounded-xl bg-white border border-zinc-200 text-zinc-700 text-sm font-medium hover:bg-zinc-50 hover:border-zinc-300 transition-all active:scale-95 disabled:opacity-50 text-left flex items-center justify-between shadow-sm"
+                  >
+                    <span>{topic.title}</span>
+                    <Brain className="w-4 h-4 text-zinc-400" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Bar Status & Tombol Ganti Topik */}
+              <div className="flex items-center justify-between px-1 text-xs">
+                <span className="text-[11px] font-medium text-zinc-500">
+                  Sesi Studi Kasus
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setLearningPhase("topic_selection")}
+                  disabled={isLoading || isSpeaking}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-600 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Pilih Topik Lain</span>
+                </button>
+              </div>
 
-          {/* Input Chat Box */}
-          <form
-            suppressHydrationWarning
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSendMessage();
-            }}
-            className="relative flex items-center w-full mt-2"
-          >
+              {/* Input Chat Box */}
+              <form
+                suppressHydrationWarning
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                className="relative flex items-center w-full"
+              >
             <input
               ref={inputRef}
               type="text"
@@ -227,7 +271,7 @@ export default function Home() {
                   ? "Memproses respons..."
                   : isSpeaking
                   ? "Neuron sedang berbicara..."
-                  : "Ketik pertanyaan..."
+                  : "Ketik tanggapan atau analisismu..."
               }
               disabled={isLoading}
               className="w-full pl-4 pr-12 py-3.5 rounded-xl bg-white border border-zinc-300 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all shadow-sm disabled:opacity-50"
@@ -245,6 +289,8 @@ export default function Home() {
               )}
             </button>
           </form>
+          </>
+          )}
         </footer>
       </div>
 
