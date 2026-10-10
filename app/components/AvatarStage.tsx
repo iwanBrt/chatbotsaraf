@@ -65,6 +65,16 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
 
   return (
     <div className="relative w-full flex flex-col items-center select-none">
+      {/* Label Nama Karakter / Peran di luar kotak avatar */}
+      {characterName && (
+        <div className="mb-2 z-10 animate-fade-in flex items-center justify-center">
+          <div className="px-3 py-1 rounded-full bg-zinc-900/80 backdrop-blur-md text-white text-[11px] font-bold tracking-wide uppercase shadow-sm flex items-center gap-1.5 border border-zinc-700/40">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{characterName}</span>
+          </div>
+        </div>
+      )}
+
       {/* Container Video Avatar 3D Tanpa Bingkai (Seamless) */}
       <div className="relative w-full max-w-[340px] aspect-[9/13] group flex justify-center items-center">
         
@@ -81,13 +91,6 @@ export const AvatarStage: React.FC<AvatarStageProps> = ({
           className="w-full h-full object-cover object-center transform scale-105 rounded-[2rem] transition-opacity duration-500 animate-fade-in"
           style={{ mixBlendMode: 'multiply' }}
         />
-
-        {/* Label Nama Karakter */}
-        <div className="absolute top-12 left-2 z-20 pointer-events-none animate-fade-in">
-          <div className="px-2.5 py-1 rounded-md bg-zinc-900/70 backdrop-blur-md text-white text-[10px] font-bold tracking-wide uppercase shadow-sm">
-            {characterName}
-          </div>
-        </div>
 
         {/* Status Indikator Minimalis */}
         <div className="absolute top-2 left-2 right-2 flex items-center justify-between z-20 pointer-events-auto">

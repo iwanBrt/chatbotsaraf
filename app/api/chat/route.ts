@@ -107,12 +107,12 @@ export async function POST(req: NextRequest) {
       // Evaluasi jawaban siswa terhadap langkah saat ini:
       const isCorrect = evaluateAnswerAgainstStep(userMessage, currentStep);
 
-      if (isCorrect) {
+      // Helper: lanjut ke tahap berikutnya (atau tuntaskan kasus) dengan kalimat pembuka tertentu
+      const advanceWith = (prefix: string) => {
         if (currentStep.stepNumber < activeCase.steps.length) {
-          const nextStep = activeCase.steps[currentStep.stepNumber]; // index is stepNumber
-          const combinedReply = `${currentStep.reinforcementIfCorrect}\n\n${nextStep.chatbotQuestion}`;
+          const nextStep = activeCase.steps[currentStep.stepNumber]; // index = stepNumber
           return NextResponse.json({
-            reply: combinedReply,
+            reply: `${prefix}\n\n${nextStep.chatbotQuestion}`,
             character: activeCase.character,
             caseId: activeCase.id,
             stepNumber: nextStep.stepNumber,
@@ -121,24 +121,42 @@ export async function POST(req: NextRequest) {
             roleName: activeCase.roleName,
             isCompleted: false,
           });
-        } else {
-          // Tahap 4 Selesai (Tuntas):
-          const completionReply = `${currentStep.reinforcementIfCorrect}\n\n${currentStep.closingText || ""}\n\nSelamat! Kamu telah menyelesaikan penyelidikan kasus ini. Apakah kamu ingin mencoba kasus investigasi lainnya?`;
-          return NextResponse.json({
-            reply: completionReply,
-            character: activeCase.character,
-            caseId: activeCase.id,
-            stepNumber: 4,
-            totalSteps: activeCase.steps.length,
-            stepTitle: currentStep.title,
-            roleName: activeCase.roleName,
-            isCompleted: true,
-          });
         }
-      } else {
-        // Jawaban siswa belum tepat -> berikan petunjuk terarah dari update.md:
+        // Tahap terakhir selesai (Tuntas):
         return NextResponse.json({
-          reply: currentStep.hintIfWrong,
+          reply: `${prefix}\n\n${currentStep.closingText || ""}\n\nSelamat! Kamu telah menyelesaikan penyelidikan kasus ini. Apakah kamu ingin mencoba kasus investigasi lainnya?`,
+          character: activeCase.character,
+          caseId: activeCase.id,
+          stepNumber: activeCase.steps.length,
+          totalSteps: activeCase.steps.length,
+          stepTitle: currentStep.title,
+          roleName: activeCase.roleName,
+          isCompleted: true,
+        });
+      };
+
+      if (isCorrect) {
+        return advanceWith(currentStep.reinforcementIfCorrect);
+      }
+
+      // Jawaban belum tepat:
+      const dontKnow = isDontKnowAnswer(userMessage);
+      const hintSnippet = currentStep.hintIfWrong.slice(0, 40).toLowerCase();
+      const lastBotMsg = [...recentHistory].reverse().find((h) => h.role === "model");
+      const hintAlreadyGiven =
+        !!lastBotMsg && lastBotMsg.content.toLowerCase().includes(hintSnippet);
+
+      if (!hintAlreadyGiven) {
+        // Percobaan pertama salah -> beri tahu kurang tepat + petunjuk dari update.md
+        const hint = currentStep.hintIfWrong;
+        const hintStartsSoft = /^tidak apa-apa/i.test(hint);
+        const opener = dontKnow
+          ? hintStartsSoft
+            ? ""
+            : "Tidak apa-apa kalau belum tahu, mari kita pikirkan bersama. "
+          : `Jawabanmu "${userMessage.trim()}" masih kurang tepat. Coba perhatikan petunjuk ini. `;
+        return NextResponse.json({
+          reply: `${opener}${hint}`.trim(),
           character: activeCase.character,
           caseId: activeCase.id,
           stepNumber: currentStep.stepNumber,
@@ -148,6 +166,14 @@ export async function POST(req: NextRequest) {
           isCompleted: false,
         });
       }
+
+      // Percobaan kedua masih salah -> jelaskan jawaban yang benar, lalu lanjut tahap berikutnya
+      const explainOpener = dontKnow
+        ? "Tidak apa-apa, mari kita bahas jawabannya bersama."
+        : "Jawabanmu masih kurang tepat.";
+      return advanceWith(
+        `${explainOpener} Jawaban yang tepat adalah: ${currentStep.expectedAnswer}\n\nIngat baik-baik ya, karena konsep ini penting untuk tahap berikutnya.`
+      );
     }
 
     // Format pesan sesuai standar OpenAI chat completion
@@ -624,23 +650,20 @@ function cleanModelOutput(text: string): string {
   return cleaned.trim();
 }
 
+/** Deteksi jawaban "tidak tahu" termasuk variasi informal (gak tau, ga tau, nggak tahu, bingung, dll.) */
+function isDontKnowAnswer(answer: string): boolean {
+  const lower = answer.toLowerCase().trim();
+  if (lower === "entah" || lower === "skip" || lower === "?" || lower === "bingung") return true;
+  return /\b(tidak|tdk|gak|ga|nggak|ngga|enggak|engga|g)\s*(tahu|tau|ngerti|paham)\b/.test(lower) ||
+    /\b(gatau|gatahu|gktau|gtau|kurang tahu|kurang tau|belum tahu|belum tau|bingung|lupa)\b/.test(lower);
+}
+
 function evaluateAnswerAgainstStep(answer: string, step: DialogStep): boolean {
   const lower = answer.toLowerCase().trim();
 
   // Jika jawaban terlalu pendek atau menyatakan tidak tahu
   if (lower.length < 2) return false;
-  if (
-    lower.includes("tidak tahu") ||
-    lower.includes("gatau") ||
-    lower.includes("nggak tau") ||
-    lower.includes("kurang tahu") ||
-    lower.includes("belum tahu") ||
-    lower.includes("ngga tau") ||
-    lower === "entah" ||
-    lower === "skip"
-  ) {
-    return false;
-  }
+  if (isDontKnowAnswer(lower)) return false;
 
   // Cek kata kunci yang cocok dari daftar keywords
   const matched = step.keywords.filter((kw) => lower.includes(kw.toLowerCase()));

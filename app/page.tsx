@@ -15,9 +15,11 @@ import {
   Stethoscope,
   Activity,
   Award,
+  Volume2,
 } from "lucide-react";
 import { AvatarStage } from "./components/AvatarStage";
 import { WelcomeModal } from "./components/WelcomeModal";
+import { VoicePicker } from "./components/VoicePicker";
 import { speakNeuronSpeech, stopNeuronSpeech } from "./utils/speech";
 import { LEARNING_CASES, LearningCase } from "./data/learningCases";
 
@@ -56,6 +58,7 @@ export default function Home() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showScenarioModal, setShowScenarioModal] = useState(false);
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
 
   // State khusus pelacakan Studi Kasus update.md
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -247,9 +250,6 @@ export default function Home() {
                 <h1 className="text-lg font-bold tracking-tight text-zinc-900 leading-tight">
                   SarafBot PBL
                 </h1>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
-                  Problem-Based
-                </span>
               </div>
               <p className="text-xs text-zinc-500 font-medium">
                 {activeRoleName || "Modul Investigasi Sistem Saraf"}
@@ -271,6 +271,16 @@ export default function Home() {
               </button>
             )}
 
+            {/* Tombol Pengaturan Suara */}
+            <button
+              onClick={() => setShowVoicePicker(true)}
+              type="button"
+              title="Pilih Suara"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 text-zinc-600 font-medium text-xs transition-all active:scale-95 cursor-pointer border border-zinc-200"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+
             {/* Tombol Buka Riwayat Percakapan */}
             <button
               onClick={() => setShowHistory(true)}
@@ -282,6 +292,8 @@ export default function Home() {
             </button>
           </div>
         </header>
+
+        <VoicePicker isOpen={showVoicePicker} onClose={() => setShowVoicePicker(false)} />
 
         {/* Center Main Stage: Avatar 3D & Speech Synchronization */}
         <div className="flex-1 flex flex-col justify-center items-center py-2 relative">
