@@ -8,13 +8,14 @@ interface MessageHistoryItem {
 
 export async function POST(req: NextRequest) {
   let userMessage = "";
+  let currentCharacter = "neuron";
   try {
     const body = await req.json();
     const {
       message,
       history = [],
       phase = "idle",
-      currentCharacter = "neuron",
+      currentCharacter: reqCharacter = "neuron",
       caseId,
       stepNumber = 1,
     } = body as {
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
       stepNumber?: number;
     };
     userMessage = typeof message === "string" ? message : "";
+    if (typeof reqCharacter === "string" && reqCharacter) {
+      currentCharacter = reqCharacter;
+    }
 
     if (!userMessage || userMessage.trim() === "") {
       return NextResponse.json(
@@ -299,8 +303,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ reply, character });
   } catch (error: unknown) {
-    console.error("Error generating response:", error);
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan.";
+    console.error("Error generating response:", errorMessage);
 
     if (isAskingForAnotherCase(userMessage, [])) {
       if (isExplicitTopicSwitch(userMessage)) {
