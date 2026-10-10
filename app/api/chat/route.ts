@@ -61,12 +61,15 @@ export async function POST(req: NextRequest) {
       (lowerMsg.includes("kasus 4") ? LEARNING_CASES[3] : undefined) ||
       (lowerMsg.includes("kasus 5") ? LEARNING_CASES[4] : undefined);
 
-    const isStartingCase =
+    const isExplicitCaseStart =
       userMessage.startsWith("Mulai kasus:") ||
       userMessage.startsWith("Saya ingin membahas kasus:") ||
-      userMessage.startsWith("Saya ingin membahas topik:") ||
       userMessage.startsWith("Pilih kasus:") ||
-      (matchedInitialCase && phase === "topic_selection");
+      /^kasus\s+[1-5]\b/i.test(userMessage.trim());
+
+    const isStartingCase =
+      isExplicitCaseStart ||
+      (!!caseId && (phase === "topic_selection" || (stepNumber === 1 && history.length === 0)));
 
     if (matchedInitialCase && isStartingCase) {
       const step1 = matchedInitialCase.steps[0];
@@ -290,7 +293,12 @@ export async function POST(req: NextRequest) {
     }
 
     if (!reply) {
-      if (isAskingForAnotherCase(userMessage, recentHistory)) {
+      // 1. Cek jika pertanyaan langsung seputar konsep/organ saraf (tanya bebas)
+      const directAnswer = getDirectQuestionAnswer(userMessage);
+      if (directAnswer) {
+        reply = directAnswer.reply;
+        character = directAnswer.character;
+      } else if (isAskingForAnotherCase(userMessage, recentHistory)) {
         // Jika minta kasus lain tapi menyebut organ spesifik (misal: "coba studi kasus batang otak")
         if (isExplicitTopicSwitch(userMessage)) {
           const specificCase = getCaseStudyFallback(userMessage);
@@ -331,6 +339,11 @@ export async function POST(req: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan.";
     console.error("Error generating response:", errorMessage);
+
+    const directAnswer = getDirectQuestionAnswer(userMessage);
+    if (directAnswer) {
+      return NextResponse.json({ reply: directAnswer.reply, character: directAnswer.character }, { status: 200 });
+    }
 
     if (isAskingForAnotherCase(userMessage, [])) {
       if (isExplicitTopicSwitch(userMessage)) {
@@ -532,6 +545,90 @@ function getCaseStudyFallback(query: string): { reply: string; character: string
   // Badan Sel / Struktur Saraf
   if (lower.includes("sel") || lower.includes("struktur") || lower.includes("badansel") || lower.includes("saraf")) {
     return getCaseStudyByCharacter("badansel");
+  }
+
+  return null;
+}
+
+function getDirectQuestionAnswer(query: string): { reply: string; character: string } | null {
+  const lower = query.toLowerCase();
+
+  // Otak Besar
+  if (lower.includes("otak besar") || lower.includes("cerebrum")) {
+    return {
+      character: "otakbesar",
+      reply: "Otak besar (cerebrum) adalah pusat kendali utama tubuh untuk berpikir, memori, kecerdasan, emosi, bahasa, dan mengatur seluruh gerak motorik sadar.",
+    };
+  }
+  // Otak Kecil
+  if (lower.includes("otak kecil") || lower.includes("cerebellum")) {
+    return {
+      character: "otakkecil",
+      reply: "Otak kecil (cerebellum) berfungsi menjaga keseimbangan tubuh, postur, serta mengoordinasikan gerakan motorik halus agar gerak tubuh kita teratur dan selaras.",
+    };
+  }
+  // Batang Otak
+  if (lower.includes("batang otak") || lower.includes("brainstem")) {
+    return {
+      character: "batangotak",
+      reply: "Batang otak adalah pusat kendali fungsi vital otonom yang bekerja otomatis tanpa disadari, seperti pernapasan, denyut jantung, tekanan darah, serta refleks menelan dan batuk.",
+    };
+  }
+  // Saraf Kranial
+  if (lower.includes("kranial") || lower.includes("cranial")) {
+    return {
+      character: "sarafkranial",
+      reply: "Saraf kranial terdiri dari 12 pasang saraf yang berasal langsung dari otak untuk mengontrol fungsi sensorik dan motorik area kepala, seperti penglihatan, pendengaran, dan ekspresi wajah.",
+    };
+  }
+  // Sumsum Tulang Belakang & Refleks
+  if (lower.includes("sumsum") || lower.includes("tulang belakang") || lower.includes("medula spinalis")) {
+    return {
+      character: "sumsum",
+      reply: "Sumsum tulang belakang berfungsi sebagai jalur transmisi impuls antara otak dan seluruh tubuh, sekaligus sebagai pusat pemrosesan gerak refleks cepat tanpa harus menunggu sinyal otak.",
+    };
+  }
+  // Saraf Spinal
+  if (lower.includes("spinal")) {
+    return {
+      character: "sarafspinal",
+      reply: "Saraf spinal terdiri dari 31 pasang saraf tepi yang keluar dari sumsum tulang belakang menuju seluruh anggota gerak, otot, dan organ tubuh.",
+    };
+  }
+  // Dendrit
+  if (lower.includes("dendrit")) {
+    return {
+      character: "dendrit",
+      reply: "Dendrit adalah percabangan pendek neuron yang bertugas menerima rangsangan atau sinyal impuls dari sel saraf lain atau reseptor, lalu meneruskannya menuju ke badan sel.",
+    };
+  }
+  // Neurit / Akson / Mielin
+  if (lower.includes("neurit") || lower.includes("akson") || lower.includes("mielin")) {
+    return {
+      character: "neurit",
+      reply: "Neurit (akson) adalah serabut panjang yang menghantarkan impuls listrik dari badan sel ke sel saraf lain atau organ efektor. Selubung mielin berfungsi mempercepat hantaran impuls saraf tersebut.",
+    };
+  }
+  // Badan Sel / Soma
+  if (lower.includes("badan sel") || lower.includes("soma")) {
+    return {
+      character: "badansel",
+      reply: "Badan sel (soma) adalah pusat metabolisme neuron yang berisi inti sel (nukleus) dan organel, berfungsi mengolah impuls yang diterima dan menjaga kelangsungan hidup sel saraf.",
+    };
+  }
+  // Sinapsis
+  if (lower.includes("sinaps") || lower.includes("sinapsis")) {
+    return {
+      character: "dendrit",
+      reply: "Sinapsis adalah celah mikroskopis tempat terjadinya transmisi informasi antarneuron menggunakan zat kimia khusus yang disebut neurotransmiter.",
+    };
+  }
+  // Neuron / Sel Saraf Umum
+  if (lower.includes("neuron") || lower.includes("sel saraf")) {
+    return {
+      character: "neuron",
+      reply: "Neuron atau sel saraf adalah unit struktural dan fungsional sistem saraf yang berfungsi menerima, memproses, dan menghantarkan sinyal impuls ke seluruh bagian tubuh.",
+    };
   }
 
   return null;
