@@ -61,6 +61,7 @@ export default function Home() {
   const [showScenarioModal, setShowScenarioModal] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
+  const [simulationCaseId, setSimulationCaseId] = useState<string | null>(null);
 
   // State khusus pelacakan Studi Kasus update.md
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -201,6 +202,7 @@ export default function Home() {
   // Pilih kasus secara langsung dari daftar
   const handleSelectCase = (caseItem: LearningCase) => {
     setActiveCaseId(caseItem.id);
+    setSimulationCaseId(caseItem.id);
     setCurrentStepNumber(1);
     setCurrentStepTitle(caseItem.steps[0].title);
     setActiveRoleName(caseItem.roleName);
@@ -285,13 +287,16 @@ export default function Home() {
 
             {/* Tombol Simulasi Animasi Kasus */}
             <button
-              onClick={() => setShowSimulationModal(true)}
+              onClick={() => {
+                setSimulationCaseId(activeCaseId || "kasus-1");
+                setShowSimulationModal(true);
+              }}
               type="button"
-              title="Simulasi & Animasi Kasus"
+              title="Simulasi 3D Sistem Saraf"
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-all active:scale-95 cursor-pointer border border-indigo-200 shadow-sm"
             >
               <Activity className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
-              <span>Simulasi</span>
+              <span>Simulasi 3D</span>
             </button>
 
             {/* Tombol Pengaturan Suara */}
@@ -349,15 +354,18 @@ export default function Home() {
                 </span>
               </div>
 
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 {LEARNING_CASES.map((c, index) => (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => handleSelectCase(c)}
-                    disabled={isLoading || isSpeaking}
-                    className="p-2.5 rounded-xl bg-zinc-50/80 hover:bg-zinc-100 border border-zinc-200/90 text-left transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-between group shadow-sm hover:shadow"
+                    className="p-2.5 rounded-xl bg-zinc-50/90 hover:bg-zinc-100/90 border border-zinc-200/90 flex items-center justify-between group shadow-xs hover:shadow transition-all"
                   >
-                    <div className="flex-1 pr-2">
+                    <button
+                      type="button"
+                      onClick={() => handleSelectCase(c)}
+                      disabled={isLoading || isSpeaking}
+                      className="flex-1 text-left pr-2 cursor-pointer disabled:opacity-50"
+                    >
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-200 text-zinc-800">
                           Kasus {index + 1}
@@ -370,9 +378,35 @@ export default function Home() {
                       <h4 className="text-xs font-bold text-zinc-900 group-hover:text-indigo-600 transition-colors">
                         {c.title}
                       </h4>
+                    </button>
+
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {/* Tombol Simulasi 3D per Studi Kasus */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSimulationCaseId(c.id);
+                          setShowSimulationModal(true);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold transition-all active:scale-95 cursor-pointer shadow-xs"
+                        title={`Buka Simulasi 3D untuk ${c.title}`}
+                      >
+                        <Activity className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+                        <span>Simulasi 3D</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSelectCase(c)}
+                        disabled={isLoading || isSpeaking}
+                        className="p-1.5 rounded-lg hover:bg-zinc-200 text-zinc-400 group-hover:text-zinc-700 transition-all cursor-pointer"
+                        title="Mulai Diskusi Kasus Ini"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-zinc-700 transition-transform group-hover:translate-x-0.5 flex-shrink-0" />
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -412,12 +446,15 @@ export default function Home() {
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setShowSimulationModal(true)}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
-                    title="Buka simulasi animasi biologi kasus"
+                    onClick={() => {
+                      setSimulationCaseId(activeCaseId || "kasus-1");
+                      setShowSimulationModal(true);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+                    title="Buka simulasi 3D biologi kasus ini"
                   >
                     <Activity className="w-3 h-3 animate-pulse" />
-                    <span>🎬 Simulasi</span>
+                    <span>🎬 Simulasi 3D</span>
                   </button>
                   <button
                     type="button"
@@ -678,11 +715,11 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* Modal Simulasi Biologi Kasus */}
+      {/* Modal Simulasi 3D Biologi Kasus */}
       <CaseSimulationModal
         isOpen={showSimulationModal}
         onClose={() => setShowSimulationModal(false)}
-        initialCaseId={activeCaseId}
+        initialCaseId={simulationCaseId || activeCaseId || "kasus-1"}
         currentStepNumber={currentStepNumber}
       />
     </main>
