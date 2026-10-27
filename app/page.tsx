@@ -20,6 +20,7 @@ import {
 import { AvatarStage } from "./components/AvatarStage";
 import { WelcomeModal } from "./components/WelcomeModal";
 import { VoicePicker } from "./components/VoicePicker";
+import { CaseSimulationModal } from "./components/CaseSimulationModal";
 import { speakNeuronSpeech, stopNeuronSpeech } from "./utils/speech";
 import { LEARNING_CASES, LearningCase } from "./data/learningCases";
 
@@ -59,6 +60,7 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const [showScenarioModal, setShowScenarioModal] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
+  const [showSimulationModal, setShowSimulationModal] = useState(false);
 
   // State khusus pelacakan Studi Kasus update.md
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
@@ -281,6 +283,17 @@ export default function Home() {
               </button>
             )}
 
+            {/* Tombol Simulasi Animasi Kasus */}
+            <button
+              onClick={() => setShowSimulationModal(true)}
+              type="button"
+              title="Simulasi & Animasi Kasus"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs transition-all active:scale-95 cursor-pointer border border-indigo-200 shadow-sm"
+            >
+              <Activity className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
+              <span>Simulasi</span>
+            </button>
+
             {/* Tombol Pengaturan Suara */}
             <button
               onClick={() => setShowVoicePicker(true)}
@@ -396,7 +409,16 @@ export default function Home() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowSimulationModal(true)}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-semibold transition-all shadow-sm active:scale-95 cursor-pointer"
+                    title="Buka simulasi animasi biologi kasus"
+                  >
+                    <Activity className="w-3 h-3 animate-pulse" />
+                    <span>🎬 Simulasi</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -417,7 +439,7 @@ export default function Home() {
                     className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Ganti Kasus</span>
+                    <span>Ganti</span>
                   </button>
                 </div>
               </div>
@@ -578,12 +600,24 @@ export default function Home() {
               </div>
             </div>
 
-            <button
-              onClick={() => setShowScenarioModal(false)}
-              className="w-full py-2.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
-            >
-              Tutup & Lanjutkan Diskusi
-            </button>
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setShowScenarioModal(false);
+                  setShowSimulationModal(true);
+                }}
+                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Activity className="w-4 h-4 animate-pulse" />
+                <span>Buka Simulasi & Animasi Biologis 🎬</span>
+              </button>
+              <button
+                onClick={() => setShowScenarioModal(false)}
+                className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              >
+                Tutup & Lanjutkan Diskusi
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -644,6 +678,13 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* Modal Simulasi Biologi Kasus */}
+      <CaseSimulationModal
+        isOpen={showSimulationModal}
+        onClose={() => setShowSimulationModal(false)}
+        initialCaseId={activeCaseId}
+        currentStepNumber={currentStepNumber}
+      />
     </main>
   );
 }

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NeuroAR – Sistem Saraf 3D dan PBL</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+:root{--bg:#0a0f24;--bg2:#17235a;--card:#121a3a;--ink:#eef2ff;--mute:#9fb0e0;--acc:#5eead4;--hot:#ff8a5c;--line:#2b3a78;--ok:#4ade80;--bad:#fb7185;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root{--bg:#eef2ff;--bg2:#cfdcff;--card:#fff;--ink:#12204f;--mute:#52608f;--acc:#0b7f75;--hot:#c2410c;--line:#c5d1f5;--ok:#15803d;--bad:#be123c}}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{font-family:'Bricolage Grotesque',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+#app{height:100%;display:flex;flex-direction:column}
+header{padding:10px 14px 6px;display:flex;align-items:baseline;gap:10px}
+header b{font-size:20px;font-weight:800;letter-spacing:-.02em}header b i{color:var(--acc);font-style:normal}
+header span{color:var(--mute);font-size:12px}
+#stage{position:relative;flex:0 0 44vh;margin:0 10px;border-radius:18px;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,var(--bg2),var(--bg) 75%);border:1px solid var(--line)}
+#stage.ar{background:#000}
+#vid{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
+#stage.ar #vid{display:block}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.seg{position:absolute;left:8px;top:8px;display:flex;background:color-mix(in srgb,var(--card) 80%,transparent);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{border:0;background:none;color:var(--mute);font:inherit;font-size:13px;padding:6px 11px;border-radius:9px}
+.seg button.on{background:var(--acc);color:#04201d;font-weight:600}
+.side{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.side button{width:42px;height:42px;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 80%,transparent);color:var(--ink);font-size:11px;font-family:inherit;line-height:1.1}
+.side button.on{border-color:var(--acc);color:var(--acc)}
+#hint{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-size:11px;color:var(--mute);pointer-events:none}
+#tabs{display:flex;gap:6px;padding:10px 10px 6px;position:sticky;top:0;background:var(--bg);z-index:2}
+#tabs button{flex:1;padding:9px;border-radius:12px;border:1px solid var(--line);background:none;color:var(--mute);font:inherit;font-weight:600}
+#tabs button.on{background:var(--card);color:var(--ink);border-color:var(--acc)}
+main{flex:1;overflow:auto;padding-bottom:20px}
+.pad{padding:4px 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin:8px 0}
+h2{margin:0 0 4px;font-size:19px;letter-spacing:-.01em}h3{margin:0 0 6px;font-size:15px}
+p{margin:6px 0}.mute{color:var(--mute)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{padding:7px 12px;border-radius:99px;border:1px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:13px}
+.chip.on{background:var(--acc);color:#04201d;border-color:var(--acc);font-weight:600}
+.btn{display:inline-block;padding:11px 16px;border-radius:12px;border:0;background:var(--acc);color:#04201d;font:inherit;font-weight:700;margin:6px 6px 0 0}
+.btn.alt{background:none;border:1px solid var(--line);color:var(--ink);font-weight:600}
+.steps{display:flex;gap:4px;margin:6px 0}
+.steps button{flex:1;border:0;border-top:4px solid var(--line);background:none;color:var(--mute);font:inherit;font-size:10.5px;padding:5px 0 0}
+.steps button.on{border-color:var(--acc);color:var(--ink);font-weight:600}.steps button.done{border-color:var(--ok)}
+.opt{display:block;width:100%;text-align:left;margin:6px 0;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:none;color:var(--ink);font:inherit}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,transparent)}.opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 16%,transparent)}
+.case{border-left:4px solid var(--hot);padding-left:12px}
+.rf{display:flex;align-items:center;gap:10px;padding:8px 0;opacity:.45;transition:opacity .3s}.rf.on{opacity:1}
+.rf i{width:12px;height:12px;border-radius:50%;background:var(--line);flex:none}.rf.on i{background:var(--hot);box-shadow:0 0 10px var(--hot)}
+.seq{min-height:40px}
+#toast{position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));background:var(--card);border:1px solid var(--acc);padding:10px 14px;border-radius:12px;display:none;z-index:9;font-size:13px}
+.seg button{padding:6px 7px;font-size:12px}
+#labs,#lsvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.lab{position:absolute;pointer-events:auto;border:1px solid var(--acc);background:color-mix(in srgb,var(--card) 85%,transparent);color:var(--ink);font:inherit;font-size:11px;padding:3px 7px;border-radius:8px;white-space:nowrap}
+#lsvg line{stroke:var(--acc);stroke-width:1.2}#lsvg circle{fill:var(--acc)}
+.nolab #labs,.nolab #lsvg{display:none}
+.ap text{font-size:8px;fill:var(--mute)}.ap .p{fill:none;stroke:var(--acc);stroke-width:2}.ap .d{stroke:var(--mute);stroke-dasharray:3 3}.ap circle{fill:var(--hot)}#imk{transition:transform .8s}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+<div id="app">
+<header><b>Neuro<i>AR</i></b><span>Sistem saraf 3D dengan pembelajaran berbasis masalah</span></header>
+<section id="stage"><video id="vid" playsinline muted autoplay></video><canvas id="cv"></canvas>
+<div class="seg"><button data-m="body" class="on">Tubuh</button><button data-m="neu">Neuron</button><button data-m="eye">Mata</button><button data-m="ear">Telinga</button><button data-m="skin">Kulit</button></div>
+<div class="side"><button id="bAR">AR<br>kamera</button><button id="bAn" class="on">Animasi</button><button id="bRe">Atur ulang</button><button id="bLb" class="on">Label</button></div>
+<svg id="lsvg"></svg><div id="labs"></div><div id="hint">Seret untuk memutar · cubit untuk zoom · ketuk label</div></section>
+<div id="tabs"><button class="on" data-t="j">Jelajah</button><button data-t="i">Impuls</button><button data-t="p">Kasus PBL</button></div>
+<main><div id="pj" class="pad"></div><div id="pi" class="pad" hidden></div><div id="pp" class="pad" hidden></div></main>
+</div><div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const INFO={
+cerebrum:{n:'Otak besar (serebrum)',d:'Pusat berpikir, ingatan, kesadaran, dan gerak yang disadari. Permukaannya berlipat agar luasnya besar.'},
+cerebellum:{n:'Otak kecil (serebelum)',d:'Mengoordinasikan gerak otot dan menjaga keseimbangan tubuh saat berdiri atau berjalan.'},
+stem:{n:'Batang otak',d:'Mengatur fungsi vital tanpa disadari: detak jantung, napas, dan menghubungkan otak dengan sumsum tulang belakang.'},
+spinal:{n:'Sumsum tulang belakang',d:'Jalur utama impuls dari dan ke otak. Juga pusat refleks, sehingga respons cepat tidak menunggu otak.'},
+nerve:{n:'Saraf tepi',d:'Neuron sensorik membawa impuls dari reseptor ke pusat saraf. Neuron motorik membawa perintah ke otot dan kelenjar.'},
+dend:{n:'Dendrit',d:'Cabang pendek yang menerima rangsang dari neuron lain atau reseptor, lalu meneruskannya ke badan sel.'},
+soma:{n:'Badan sel dan inti',d:'Berisi inti sel dan mengatur metabolisme neuron. Impuls dari dendrit berkumpul di sini.'},
+axon:{n:'Akson',d:'Serabut panjang yang menghantar impuls menjauhi badan sel menuju neuron atau sel target berikutnya.'},
+myelin:{n:'Selubung mielin',d:'Isolator berlemak yang membuat impuls “melompat” antar nodus Ranvier sehingga hantaran jauh lebih cepat.'},
+term:{n:'Ujung akson (sinapsis)',d:'Melepaskan neurotransmiter ke celah sinapsis untuk meneruskan sinyal ke sel berikutnya.'},
+node:{n:'Nodus Ranvier',d:'Celah antar selubung mielin tempat kanal ion terkonsentrasi. Impuls “melompat” dari satu nodus ke nodus berikutnya.'},
+kornea:{n:'Kornea',d:'Lapisan bening di depan mata yang membiaskan sebagian besar cahaya yang masuk.'},
+iris:{n:'Iris dan pupil',d:'Iris mengatur lebar pupil, lubang pusat yang mengendalikan jumlah cahaya masuk.'},
+lensa:{n:'Lensa mata',d:'Mengubah kecembungan (akomodasi) agar bayangan jatuh tepat di retina.'},
+retina:{n:'Retina',d:'Lapisan sel batang dan sel kerucut yang mengubah cahaya menjadi impuls saraf.'},
+optik:{n:'Saraf optik',d:'Membawa impuls dari retina ke otak (lobus oksipital) untuk diolah menjadi penglihatan.'},
+aurikula:{n:'Daun telinga',d:'Menangkap gelombang bunyi dan mengarahkannya ke saluran telinga.'},
+saluran:{n:'Saluran telinga',d:'Menyalurkan gelombang bunyi menuju gendang telinga.'},
+gendang:{n:'Gendang telinga',d:'Selaput tipis yang bergetar ketika terkena gelombang bunyi.'},
+osikel:{n:'Tulang pendengar',d:'Martil, landasan, dan sanggurdi memperkuat getaran lalu meneruskannya ke koklea.'},
+koklea:{n:'Koklea (rumah siput)',d:'Berisi cairan dan sel rambut yang mengubah getaran menjadi impuls saraf.'},
+auditori:{n:'Saraf auditori',d:'Membawa impuls dari koklea ke otak (lobus temporal) untuk diartikan sebagai bunyi.'},
+epidermis:{n:'Epidermis',d:'Lapisan terluar kulit sebagai pelindung, tipis tetapi peka terhadap sentuhan ringan.'},
+dermis:{n:'Dermis',d:'Berisi pembuluh darah, kelenjar, akar rambut, dan banyak ujung saraf reseptor.'},
+hipodermis:{n:'Jaringan lemak bawah kulit',d:'Menyimpan lemak, menahan panas, dan meredam benturan.'},
+reseptor:{n:'Reseptor kulit',d:'Meissner dan Merkel peka sentuhan ringan, Pacini peka tekanan dan getaran, Ruffini peka regangan. Ujung saraf bebas peka nyeri dan suhu.'},
+sarafkulit:{n:'Saraf sensorik',d:'Serabut yang membawa impuls dari reseptor menuju sumsum tulang belakang, lalu ke otak.'}};
+const KEYS={body:['cerebrum','cerebellum','stem','spinal','nerve'],neu:['dend','soma','axon','node','myelin','term'],eye:['kornea','iris','lensa','retina','optik'],ear:['aurikula','saluran','gendang','osikel','koklea','auditori'],skin:['epidermis','dermis','hipodermis','reseptor','sarafkulit']};
+const MT={body:['Sistem saraf manusia','Otak dan sumsum tulang belakang membentuk sistem saraf pusat. Saraf tepi menghubungkannya ke seluruh tubuh.'],neu:['Struktur neuron','Neuron adalah sel penghantar impuls: dendrit menerima, akson menghantar, ujung akson meneruskan.'],eye:['Mata: indra penglihatan','Cahaya masuk lewat kornea dan lensa, jatuh di retina, lalu saraf optik membawa impuls ke otak.'],ear:['Telinga: indra pendengaran','Getaran bunyi diteruskan gendang dan tulang pendengar ke koklea. Saraf auditori membawa impuls ke otak.'],skin:['Kulit: indra peraba','Reseptor di kulit mengubah sentuhan, tekanan, suhu, dan nyeri menjadi impuls sensorik.']};
+// ---------- 3D ----------
+const cv=$('#cv'),stage=$('#stage');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});R.setPixelRatio(Math.min(devicePixelRatio,2));
+const S=new THREE.Scene(),cam=new THREE.PerspectiveCamera(45,1,.1,100);
+S.add(new THREE.AmbientLight(0xffffff,.7));
+const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(5,8,10);S.add(dl);
+const pl=new THREE.PointLight(0x5eead4,.9,40);pl.position.set(-6,2,6);S.add(pl);
+const root=new THREE.Group();S.add(root);
+const body=new THREE.Group(),neu=new THREE.Group();neu.scale.setScalar(.8);neu.visible=false;root.add(body,neu);
+const parts=[];
+const mat=(c,e=.15,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.45,metalness:.1,emissive:c,emissiveIntensity:e},o));
+function add(g,geo,m,pos,key,m2){const me=new THREE.Mesh(geo,m);me.position.set(...pos);g.add(me);if(key){me.userData={k:key,b:m.emissiveIntensity,g:m2};parts.push(me)}return me}
+function bumpy(r){const g=new THREE.SphereGeometry(r,32,24),p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=1+.07*Math.sin(x*9)*Math.sin(y*9+1)*Math.sin(z*9);p.setXYZ(i,x*k,y*k,z*k)}g.computeVertexNormals();return g}
+const ghost=new THREE.MeshBasicMaterial({color:0x7aa2ff,transparent:true,opacity:.1,depthWrite:false});
+const cyl=(r,h,s=16)=>new THREE.CylinderGeometry(r,r,h,s);
+// tubuh bayangan
+add(body,new THREE.SphereGeometry(.95,24,16),ghost,[0,3.4,0]);
+const tor=add(body,cyl(1.1,3.8,24),ghost,[0,.5,0]);tor.scale.z=.55;
+add(body,cyl(.3,3.4),ghost,[1.8,.3,0]);add(body,cyl(.3,3.4),ghost,[-1.8,.3,0]);
+add(body,cyl(.38,5),ghost,[.62,-3.9,0]);add(body,cyl(.38,5),ghost,[-.62,-3.9,0]);
+// otak & sumsum
+for(const s of[-1,1]){const h=add(body,bumpy(.55),mat(0xff8fab),[s*.3,3.6,0],'cerebrum');h.scale.set(.85,.8,1.1)}
+const cb=add(body,bumpy(.3),mat(0xb388ff),[0,3.0,-.5],'cerebellum');cb.scale.set(1.2,.7,1);
+add(body,new THREE.CylinderGeometry(.13,.1,.6,16),mat(0xffa94d),[0,2.85,-.2],'stem');
+add(body,cyl(.09,4.1),mat(0xffd166,.25),[0,.5,-.2],'spinal');
+// saraf tepi
+const nm=mat(0x5eead4,.35);
+function nerve(pts){const c=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));add(body,new THREE.TubeGeometry(c,40,.045,6),nm.clone(),[0,0,0],'nerve');return c}
+const mir=pts=>pts.map(p=>[-p[0],p[1],p[2]]);
+const armP=[[.05,1.9,-.2],[.8,1.95,-.05],[1.5,1.6,0],[1.8,.7,.05],[1.85,-.4,.08],[1.9,-1.3,.1]];
+const legP=[[.05,-1.3,-.2],[.4,-1.9,-.1],[.6,-3,0],[.62,-4.5,.05],[.62,-6,.1]];
+const arm=nerve(armP),limbs=[arm,nerve(mir(armP)),nerve(legP),nerve(mir(legP))];
+for(let i=0;i<5;i++){const y=1.6-i*.7;for(const s of[-1,1])nerve([[0,y,-.2],[s*.5,y-.1,-.1],[s*.95,y-.3,.15]])}
+const mot=new THREE.CatmullRomCurve3([[.05,1.9,-.2],[.8,1.95,.1],[1.5,1.55,.2],[1.82,.7,.22],[1.85,.3,.2]].map(p=>new THREE.Vector3(...p)));
+const sens=new THREE.CatmullRomCurve3([...armP].reverse().map(p=>new THREE.Vector3(...p)));
+const spUp=new THREE.LineCurve3(new THREE.Vector3(.05,1.9,-.2),new THREE.Vector3(0,3.1,-.2));
+const spAll=new THREE.LineCurve3(new THREE.Vector3(0,-1.5,-.2),new THREE.Vector3(0,3.1,-.2));
+const spDn=new THREE.LineCurve3(new THREE.Vector3(0,3.1,-.2),new THREE.Vector3(0,-1.3,-.2));
+// efek refleks
+const hot=add(body,new THREE.SphereGeometry(.22,16,12),new THREE.MeshBasicMaterial({color:0xff6a2b}),[1.9,-1.45,.15]);hot.visible=false;
+const ring=add(body,new THREE.TorusGeometry(.25,.04,8,24),new THREE.MeshBasicMaterial({color:0xffe08a}),[.05,1.9,-.2]);ring.visible=false;
+const musc=add(body,new THREE.SphereGeometry(.3,16,12),new THREE.MeshBasicMaterial({color:0xff4d6d,transparent:true,opacity:.75}),[1.85,.3,.2]);musc.visible=false;
+// neuron
+const dm=mat(0x60a5fa,.25);
+const soma=add(neu,new THREE.SphereGeometry(1,32,24),mat(0xc084fc,.2,{transparent:true,opacity:.6}),[-4.5,0,0],'soma');
+add(neu,new THREE.SphereGeometry(.4,20,16),mat(0xf0abfc,.5),[-4.5,0,0],'soma');
+function tube(g,pts,r,m,key){const c=new THREE.CatmullRomCurve3(pts.map(p=>new THREE.Vector3(...p)));add(g,new THREE.TubeGeometry(c,24,r,6),m.clone(),[0,0,0],key);return c}
+for(let i=0;i<6;i++){const a=Math.PI*(.62+i*.15),d=[Math.cos(a),Math.sin(a),(i%2?.3:-.3)],o=-4.5,
+ P=k=>[o+d[0]*k,d[1]*k,d[2]*k];tube(neu,[P(.9),P(2),P(3.1)],.07,dm,'dend');
+ tube(neu,[P(2),[o+d[0]*2.6,d[1]*2.6+.5,d[2]*2.6],[o+d[0]*3.3,d[1]*3.3+1,d[2]*3.3]],.045,dm,'dend')}
+const ax=add(neu,cyl(.12,8.9),mat(0xfbbf24,.3),[.4,0,0],'axon');ax.rotation.z=Math.PI/2;
+for(let i=0;i<5;i++){const m=add(neu,cyl(.3,1.2,20),mat(0xfff1c9,.25),[-2.6+i*1.6,0,0],'myelin');m.rotation.z=Math.PI/2}
+const tm=mat(0x34d399,.3);
+[[.9,.2],[.8,-.3],[.5,.8],[.5,-.8]].forEach(([y,z],i)=>{const e=[6.4,(i<2?1:-1)*(.4+i*.3),z];tube(neu,[[4.9,0,0],[5.6,e[1]*.4,0],e],.06,tm,'term');add(neu,new THREE.SphereGeometry(.2,12,10),tm.clone(),e,'term')});
+const axC=new THREE.LineCurve3(new THREE.Vector3(-3.5,0,0),new THREE.Vector3(5,0,0));
+const dnC=new THREE.CatmullRomCurve3([[-7.4,1.8,0],[-6,1,0],[-5.2,.4,0],[-4.5,0,0]].map(p=>new THREE.Vector3(...p)));
+// impuls & partikel
+const eye=new THREE.Group(),ear=new THREE.Group(),skin=new THREE.Group();[eye,ear,skin].forEach(g=>{g.visible=false;root.add(g)});
+const tr=(c,o={})=>mat(c,.15,Object.assign({transparent:true,opacity:.4,depthWrite:false},o));
+eye.rotation.y=Math.PI/2;eye.position.x=.95;ear.position.x=.8;skin.position.y=-.6;
+add(eye,new THREE.SphereGeometry(1.4,32,24),tr(0x9ec5ff,{opacity:.25,side:THREE.DoubleSide}),[0,0,0]);
+add(eye,new THREE.SphereGeometry(.9,24,16),tr(0x7dd3fc,{opacity:.45}),[0,0,1],'kornea').scale.z=.55;
+add(eye,new THREE.RingGeometry(.22,.8,32),mat(0x8b5a2b,.1,{side:THREE.DoubleSide}),[0,0,.95],'iris');
+add(eye,new THREE.SphereGeometry(.45,20,16),tr(0xfde68a,{opacity:.85}),[0,0,.6],'lensa').scale.z=.55;
+add(eye,new THREE.SphereGeometry(1.36,32,16,0,Math.PI*2,0,1.25),mat(0xff6b6b,.2,{side:THREE.DoubleSide}),[0,0,0],'retina').rotation.x=-Math.PI/2;
+const oc=tube(eye,[[0,-.1,-1.38],[0,-.2,-2.3],[0,-.4,-3.4]],.2,mat(0xffd166,.3),'optik');
+const au=add(ear,new THREE.TorusGeometry(1,.2,10,28,4.9),mat(0xffb199),[-4.2,.7,0],'aurikula');au.scale.y=1.4;au.rotation.z=Math.PI*.9;
+add(ear,cyl(.3,2.2),tr(0xffcba4,{opacity:.55}),[-2.5,0,0],'saluran').rotation.z=Math.PI/2;
+add(ear,cyl(.6,.06,24),mat(0xe8e1d0),[-1.3,0,0],'gendang').rotation.z=Math.PI/2;
+[-.8,-.25,.3].forEach(x=>add(ear,new THREE.SphereGeometry(.17,12,10),mat(0xf5f5dc),[x,.1,0],'osikel'));
+add(ear,cyl(.04,1.3,6),mat(0xf5f5dc),[-.25,.1,0],'osikel').rotation.z=Math.PI/2;
+const hp=[];for(let i=0;i<=60;i++){const t=i/60,a=t*Math.PI*5,r=1-.65*t;hp.push(new THREE.Vector3(1.6+Math.cos(a)*r,-.5+t*1.3,Math.sin(a)*r))}
+const hc=new THREE.CatmullRomCurve3(hp);add(ear,new THREE.TubeGeometry(hc,120,.17,8),mat(0xb388ff,.2),[0,0,0],'koklea');
+const ac=tube(ear,[[1.25,.8,0],[2.3,1.2,0],[3.3,1.4,0]],.12,mat(0xffd166,.3),'auditori');
+add(skin,new THREE.BoxGeometry(6,.5,3),tr(0xf4b693,{opacity:.6}),[0,1.7,0],'epidermis');
+add(skin,new THREE.BoxGeometry(6,1.7,3),tr(0xe08e79,{opacity:.55}),[0,.6,0],'dermis');
+add(skin,new THREE.BoxGeometry(6,1.2,3),tr(0xffe8a3,{opacity:.55}),[0,-.85,0],'hipodermis');
+add(skin,cyl(.06,2.4,8),mat(0x5b3a29,.05),[-1.8,2.4,.2]);
+[[-2.1,1.35,.22],[.2,1.45,.12],[1.9,-.1,.3],[-.6,.3,.2]].forEach(([x,y,r],i)=>{const m=add(skin,new THREE.SphereGeometry(r,16,12),mat(0xfde047,.4),[x,y,0],'reseptor');if(i==2)m.scale.y=1.4});
+const kc=tube(skin,[[-2.1,1.25,0],[-1.9,.5,0],[-.8,.2,0],[.3,-.8,0],[1.4,-1.7,0],[3,-2.2,0]],.05,nm,'sarafkulit');
+tube(skin,[[.2,1.35,0],[.2,.3,0],[.3,-.8,0]],.04,nm,'sarafkulit');tube(skin,[[1.9,-.3,0],[1.9,-.9,0],[1.4,-1.7,0]],.04,nm,'sarafkulit');
+const imps=[],pts=[];
+function fire(c,col,sp,cb,g=body){const o=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),new THREE.MeshBasicMaterial({color:col}));
+ const h=new THREE.Mesh(new THREE.SphereGeometry(.3,12,10),new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.3}));o.add(h);g.add(o);imps.push({o,c,t:0,sp:sp/c.getLength(),cb,g})}
+function burst(){for(let i=0;i<14;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.06,6,6),new THREE.MeshBasicMaterial({color:0x7dfcc8,transparent:true}));m.position.set(6.4,(Math.random()-.5)*1.2,(Math.random()-.5)*.8);neu.add(m);pts.push({m,v:[.5+Math.random()*.8,(Math.random()-.5)*.8,(Math.random()-.5)*.5],l:1})}}
+// ---------- State ----------
+let mode='body',anim=true,busy=false,ry=0,rx=.05,dist=15.5,idle=0,snap=false,sel=null,nextAmb=1,tAmb=0;
+const G={body,neu,eye,ear,skin},DIST={body:15.5,neu:15,eye:10,ear:15,skin:14};
+function setMode(m){mode=m;for(const k in G)G[k].visible=k===m;root.position.y=m==='body'?1:0;dist=DIST[m];sel=null;document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));buildLabs();renderJ()}
+function size(){const w=stage.clientWidth,h=stage.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+new ResizeObserver(size).observe(stage);
+const ray=new THREE.Raycaster(),ptr=new THREE.Vector2();
+function pick(e){const b=cv.getBoundingClientRect();ptr.set((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1);ray.setFromCamera(ptr,cam);
+ const h=ray.intersectObjects(parts.filter(p=>p.parent.visible),false);if(h[0]){sel=h[0].object.userData.k;renderJ();$('#tabs button[data-t=j]').click()}}
+const P=new Map();let moved=0,lp=0;const pd=()=>{const a=[...P.values()];return Math.hypot(a[0][0]-a[1][0],a[0][1]-a[1][1])||1};
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);moved=0;idle=0;snap=false;if(P.size==2)lp=pd()});
+cv.addEventListener('pointermove',e=>{const p=P.get(e.pointerId);if(!p)return;const dx=e.clientX-p[0],dy=e.clientY-p[1];P.set(e.pointerId,[e.clientX,e.clientY]);idle=0;
+ if(P.size==1){moved+=Math.abs(dx)+Math.abs(dy);ry+=dx*.01;rx=clamp(rx+dy*.006,-.6,.6)}else if(P.size==2){const d=pd();dist=clamp(dist*lp/d,8,28);lp=d;moved+=10}});
+cv.addEventListener('pointerup',e=>{if(P.size==1&&moved<8)pick(e);P.delete(e.pointerId)});
+cv.addEventListener('pointercancel',e=>P.delete(e.pointerId));
+cv.addEventListener('wheel',e=>{e.preventDefault();dist=clamp(dist+e.deltaY*.01,8,28)},{passive:false});
+let last=performance.now(),T=0;
+function loop(now){requestAnimationFrame(loop);const dt=Math.min((now-last)/1000,.05);last=now;T+=dt;idle+=dt;
+ if(snap){const k=Math.round(ry/(2*Math.PI))*2*Math.PI;ry+=(k-ry)*.08;rx+=(.05-rx)*.08}else if(anim&&!busy&&idle>3&&!P.size)ry+=dt*.25;
+ root.rotation.set(rx,ry,0);cam.position.set(0,0,dist);cam.lookAt(0,0,0);
+ parts.forEach(p=>{const on=p.userData.k===sel;p.material.emissiveIntensity=p.userData.b+(on?.5+.3*Math.sin(T*5):0)});
+ [hot,ring,musc].forEach(x=>{if(x.visible)x.scale.setScalar(1+.25*Math.sin(T*12))});
+ for(let i=imps.length-1;i>=0;i--){const m=imps[i];m.t+=m.sp*dt;if(m.t>=1){m.g.remove(m.o);imps.splice(i,1);m.cb&&m.cb();continue}m.o.position.copy(m.c.getPointAt(m.t));m.o.scale.setScalar(1+.2*Math.sin(T*20))}
+ for(let i=pts.length-1;i>=0;i--){const q=pts[i];q.l-=dt*.8;q.m.position.x+=q.v[0]*dt;q.m.position.y+=q.v[1]*dt;q.m.position.z+=q.v[2]*dt;q.m.material.opacity=Math.max(q.l,0);if(q.l<=0){neu.remove(q.m);pts.splice(i,1)}}
+ if(anim&&!busy&&(tAmb+=dt)>nextAmb){tAmb=0;nextAmb=1.8+Math.random()*1.5;ambient()}
+ cam.updateMatrixWorld();updLabs();R.render(S,cam)}
+function ambient(){if(mode==='eye')return fire(oc,0xffd166,3,null,eye);if(mode==='ear')return fire(hc,0xb388ff,3,()=>fire(ac,0xffd166,3,null,ear),ear);if(mode==='skin')return fire(kc,0xffd166,3.5,null,skin);if(mode==='neu'){fire(dnC,0x60a5fa,5,()=>fire(axC,0xfbbf24,7,burst,neu),neu);return}
+ const l=limbs[Math.floor(Math.random()*4)],up=Math.random()<.5;
+ if(up){const r=new THREE.CatmullRomCurve3(l.getPoints(30).reverse());fire(r,0x5eead4,4,()=>fire(spUp,0xffd166,5,()=>fire(new THREE.LineCurve3(spUp.v2,new THREE.Vector3(0,3.5,0)),0xff8fab,3)))}
+ else fire(spDn,0xff8fab,5,()=>fire(l,0x4ade80,4))}
+// ---------- Label petunjuk ----------
+const LD={
+body:[['cerebrum','Otak besar',[.5,3.9,.3],55,-30],['cerebellum','Otak kecil',[0,3,-.55],-55,15],['stem','Batang otak',[0,2.8,-.2],55,30],['spinal','Sumsum tulang belakang',[0,.5,-.2],-15,0],['nerve','Saraf tepi',[1.85,-.4,.08],40,30]],
+neu:[['dend','Dendrit',[-6.1,1.4,0],10,-45],['soma','Badan sel dan inti',[-4.5,-.9,0],0,50],['node','Nodus Ranvier',[-1.8,0,0],0,-45],['axon','Akson',[1.2,0,0],0,-45],['myelin','Selubung mielin',[2.2,.3,0],0,50],['term','Ujung akson',[6.4,.5,0],-10,-50]],
+eye:[['kornea','Kornea',[0,.6,1.4],15,-55],['lensa','Lensa',[0,.2,.6],0,-55],['iris','Iris dan pupil',[0,-.7,.95],20,60],['retina','Retina',[0,-1,-1.2],-10,55],['optik','Saraf optik',[0,-.3,-3],0,-50]],
+ear:[['aurikula','Daun telinga',[-4.2,1.9,0],0,-45],['saluran','Saluran telinga',[-2.5,.3,0],-5,55],['gendang','Gendang telinga',[-1.3,-.6,0],10,90],['osikel','Tulang pendengar',[-.25,.3,0],0,-45],['koklea','Koklea',[1.6,-.6,.4],25,55],['auditori','Saraf auditori',[2.3,1.2,0],10,-45]],
+skin:[['epidermis','Epidermis',[-3,1.7,1.5],-10,-30],['dermis','Dermis',[-3,.6,1.5],-10,0],['hipodermis','Jaringan lemak',[-3,-.85,1.5],-10,35],['reseptor','Reseptor sentuhan',[-2.1,1.35,0],0,-95],['sarafkulit','Saraf sensorik',[3,-2.2,0],-10,35]]};
+let LE=[];const wv=new THREE.Vector3(),NS='http://www.w3.org/2000/svg';
+function buildLabs(){$('#labs').innerHTML='';$('#lsvg').innerHTML='';LE=LD[mode].map(d=>{const b=document.createElement('button');b.className='lab';b.textContent=d[1];b.onclick=()=>{sel=d[0];renderJ();$('#tabs button[data-t=j]').click()};$('#labs').appendChild(b);const l=document.createElementNS(NS,'line'),c=document.createElementNS(NS,'circle');c.setAttribute('r',3.5);$('#lsvg').append(l,c);return{d,b,l,c,v:new THREE.Vector3(...d[2])}})}
+function updLabs(){const w=stage.clientWidth,h=stage.clientHeight,g=G[mode];root.updateMatrixWorld(true);
+ for(const e of LE){wv.copy(e.v);g.localToWorld(wv);const fr=wv.z>-1.2;wv.project(cam);const x=(wv.x*.5+.5)*w,y=(-wv.y*.5+.5)*h,dx=e.d[3],dy=e.d[4],tx=x+dx,ty=y+dy;
+  e.b.style.cssText=`left:${tx}px;top:${ty}px;transform:translate(${dx>0?'0':dx<0?'-100%':'-50%'},-50%);opacity:${fr?1:.3}`;
+  const ly=ty-Math.sign(dy)*(dx==0?10:0);e.l.setAttribute('x1',x);e.l.setAttribute('y1',y);e.l.setAttribute('x2',tx);e.l.setAttribute('y2',ly);e.l.style.opacity=fr?1:.3;e.c.setAttribute('cx',x);e.c.setAttribute('cy',y)}}
+// ---------- Penghantaran impuls ----------
+const NODES=[-1.8,-.2,1.4,3,4.7],fl=add(neu,new THREE.SphereGeometry(.28,16,12),new THREE.MeshBasicMaterial({color:0xffe08a,transparent:true,opacity:.8}),[0,0,0]);fl.visible=false;
+const IM=[['Potensial istirahat','Bagian dalam akson bermuatan negatif, sekitar −70 mV. Pompa Na⁺/K⁺ menjaga Na⁺ banyak di luar dan K⁺ banyak di dalam.',[20,76]],['Rangsang dan depolarisasi','Rangsang melewati ambang (−55 mV). Kanal Na⁺ terbuka, Na⁺ masuk dengan cepat, dan bagian dalam menjadi positif hingga +40 mV.',[80,10]],['Repolarisasi','Kanal Na⁺ menutup dan kanal K⁺ terbuka. K⁺ keluar sehingga muatan dalam kembali negatif.',[104,44]],['Hiperpolarisasi dan masa refraktori','K⁺ masih keluar sehingga potensial turun sampai sekitar −80 mV. Akson tidak dapat dirangsang lagi, sehingga impuls hanya merambat satu arah.',[140,83]],['Hantaran saltatori','Pada akson bermielin, depolarisasi hanya terjadi di nodus Ranvier. Impuls melompat dari nodus ke nodus sehingga jauh lebih cepat.',[240,76]],['Transmisi di sinapsis','Impuls tiba di ujung akson, kanal Ca²⁺ terbuka, dan vesikel melepas neurotransmiter. Zat ini menempel pada reseptor neuron berikutnya dan impuls baru dimulai.',[240,76]]];
+const IC=['1 Istirahat','2 Depolarisasi','3 Repolarisasi','4 Refraktori','5 Saltatori','6 Sinapsis'];
+function spawn(col,x,y,z,vy){const m=new THREE.Mesh(new THREE.SphereGeometry(.07,6,6),new THREE.MeshBasicMaterial({color:col,transparent:true}));m.position.set(x,y,z);neu.add(m);pts.push({m,v:[0,vy,0],l:1})}
+function ions(x,inn){for(let i=0;i<9;i++)spawn(inn?0xff9f43:0x60a5fa,x+(Math.random()-.5)*.5,inn?.9+Math.random()*.3:.05,(Math.random()-.5)*.5,inn?-.5:.6)}
+function impFx(i){setMode('neu');snap=false;ry=0;rx=.05;fl.visible=false;const x=NODES[1];
+ if(i==0)for(let k=0;k<8;k++){spawn(0xff9f43,NODES[k%5]+Math.random()*.5,.9,0,0);spawn(0x60a5fa,NODES[k%5]+Math.random()*.5,.05,0,0)}
+ if(i==1||i==2){i==1?ions(x,true):ions(x,false);fl.position.x=x;fl.visible=true}
+ if(i==4)NODES.forEach((n,k)=>setTimeout(()=>{fl.position.x=n;fl.visible=true;ions(n,true);if(k==4)setTimeout(()=>fl.visible=false,400)},k*350));
+ if(i==5)fire(axC,0xfbbf24,6,burst,neu)}
+function setImpUI(i){document.querySelectorAll('#pi .chip').forEach((c,j)=>c.classList.toggle('on',j==i));$('#imtx').innerHTML=`<h3>${IM[i][0]}</h3><p>${IM[i][1]}</p>`;$('#imk').style.transform=`translate(${IM[i][2][0]}px,${IM[i][2][1]}px)`}
+function renderI(){$('#pi').innerHTML=`<div class="card"><h2>Penghantaran impuls saraf</h2><svg class="ap" viewBox="0 0 300 100" width="100%"><line class="d" x1="0" x2="300" y1="67" y2="67"/><path class="p" d="M0,76 L50,76 L58,67 C66,30 72,10 80,10 C92,10 100,50 118,70 C128,82 140,84 150,82 C175,80 190,76 230,76 L300,76"/><text x="4" y="9">+40 mV</text><text x="4" y="97">−80 mV</text><text x="215" y="62">ambang −55 mV</text><text x="215" y="92">istirahat −70 mV</text><g id="imk"><circle r="5"/></g></svg><div class="chips">${IC.map((t,i)=>`<button class="chip" data-i="${i}">${t}</button>`).join('')}</div><div id="imtx"></div><p class="mute">Pada model neuron: titik oranye adalah Na⁺, titik biru adalah K⁺.</p><button class="btn" id="auto">Putar otomatis</button></div>`;setImpUI(0);document.querySelector('#pi .chip').classList.add('on')}
+let imT=null;
+$('#pi').onclick=e=>{const i=e.target.dataset.i;if(i!=null){clearInterval(imT);setImpUI(+i);impFx(+i)}else if(e.target.id=='auto'){clearInterval(imT);let k=0;setImpUI(0);impFx(0);imT=setInterval(()=>{if(++k>5)return clearInterval(imT);setImpUI(k);impFx(k)},3200)}};
+// ---------- Kontrol ----------
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));$('#bLb').onclick=e=>{stage.classList.toggle('nolab');e.currentTarget.classList.toggle('on')};
+$('#bAn').onclick=e=>{anim=!anim;e.currentTarget.classList.toggle('on',anim)};
+$('#bRe').onclick=()=>{ry=0;rx=.05;dist=DIST[mode];sel=null;renderJ()};
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';setTimeout(()=>e.style.display='none',4200)}
+let stream=null;
+$('#bAR').onclick=async e=>{const b=e.currentTarget;
+ if(stage.classList.contains('ar')){stream&&stream.getTracks().forEach(t=>t.stop());stage.classList.remove('ar');b.classList.remove('on');return}
+ try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}});$('#vid').srcObject=stream;stage.classList.add('ar');b.classList.add('on');dist=Math.max(dist,18);toast('Mode AR aktif. Arahkan kamera ke meja, lalu putar dan zoom model.')}
+ catch(x){toast('Kamera tidak dapat dibuka di tampilan ini. Buka tautan di peramban seluler dan izinkan akses kamera.')}};
+$('#tabs').onclick=e=>{const t=e.target.dataset.t;if(!t)return;document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b===e.target));$('#pj').hidden=t!=='j';$('#pi').hidden=t!=='i';$('#pp').hidden=t!=='p';if(t==='i'&&mode!=='neu')setMode('neu')};
+function renderJ(){const k=KEYS[mode],i=sel&&INFO[sel];
+ $('#pj').innerHTML=`<div class="chips">${k.map(x=>`<button class="chip ${x===sel?'on':''}" data-k="${x}">${INFO[x].n.split(' (')[0]}</button>`).join('')}</div>`+
+ `<div class="card">${i?`<h2>${i.n}</h2><p>${i.d}</p>`:`<h2>${MT[mode][0]}</h2><p>${MT[mode][1]}</p><p class="mute">Ketuk label atau bagian model untuk detailnya. Titik cahaya adalah impuls saraf yang merambat.</p>`}</div>`+
+ `<div class="card"><h3>Coba ini</h3><p class="mute">Buka tab Impuls untuk melihat proses penghantaran impuls, atau tab Kasus PBL untuk menyelidiki refleks.</p></div>`}
+$('#pj').onclick=e=>{const k=e.target.dataset.k;if(k){sel=k;renderJ()}};
+// ---------- PBL ----------
+const ST=['Orientasi','Organisasi','Selidiki','Hasil karya','Evaluasi'];
+const ARC=['Reseptor kulit di ujung jari','Neuron sensorik','Sumsum tulang belakang','Neuron motorik','Efektor: otot lengan'];
+const QZ=[['Pusat refleks berada di…',['Otak besar','Sumsum tulang belakang','Otak kecil'],1],['Neuron yang membawa impuls dari reseptor ke pusat saraf adalah…',['Neuron sensorik','Neuron motorik','Sel glia'],0],['Selubung mielin berfungsi untuk…',['Menyimpan memori','Mempercepat hantaran impuls','Menerima rangsang'],1],['Bagian otak yang mengoordinasikan keseimbangan adalah…',['Batang otak','Otak kecil','Hipotalamus'],1]];
+const H=[['A','Otak lebih dulu memerintahkan tangan, baru terasa sakit.'],['B','Impuls diolah di sumsum tulang belakang tanpa menunggu otak.'],['C','Otot tangan bergerak sendiri tanpa melibatkan saraf.']];
+const ps={s:0,hyp:null,reach:0,ord:[],ordOk:false,qa:{},done:new Set()};
+function renderP(){const s=ps.s;let h=`<div class="steps">${ST.map((t,i)=>`<button data-s="${i}" class="${i==s?'on':''} ${ps.done.has(i)?'done':''}">${i+1}. ${t}</button>`).join('')}</div>`;
+ if(s==0)h+=`<div class="card case"><h2>Masalah: tangan Rani</h2><p>Rani membantu ibu menyetrika. Jarinya menyentuh setrika panas. Dalam sekejap tangannya sudah tertarik menjauh, bahkan sebelum ia merasakan sakit hebat.</p><p><b>Mengapa tubuh Rani bisa bereaksi secepat itu?</b></p></div><div class="card"><h3>Pertanyaan pemandu</h3><p>1. Jalur apa yang dilalui impuls dari jari sampai otot?<br>2. Mengapa sakit baru terasa setelah tangan bergerak?<br>3. Bagian mana yang menjadi pusat kendali?</p></div><button class="btn" data-go="1">Mulai: susun dugaan</button>`;
+ if(s==1)h+=`<div class="card"><h2>Buat hipotesis</h2><p class="mute">Pilih dugaan yang menurutmu paling masuk akal. Kamu akan mengujinya di langkah berikutnya.</p>${H.map(x=>`<button class="opt ${ps.hyp==x[0]?'ok':''}" data-h="${x[0]}">${x[0]}. ${x[1]}</button>`).join('')}</div>${ps.hyp?'<button class="btn" data-go="2">Uji dengan simulasi</button>':''}`;
+ if(s==2)h+=`<div class="card"><h2>Penyelidikan: busur refleks</h2><p class="mute">Putar model untuk mengamati. Simulasi menampilkan jalur impuls pada lengan kanan.</p><button class="btn" id="run">Jalankan simulasi</button>${ARC.map((t,i)=>`<div class="rf ${ps.reach>i?'on':''}"><i></i><span>${t}</span></div>`).join('')}<p class="mute" id="note">${ps.reach>=5?'Impuls juga menjalar naik ke otak. Karena jalur ini lebih panjang, rasa sakit terasa belakangan.':''}</p></div>${ps.reach>=5?'<button class="btn" data-go="3">Susun hasil temuan</button>':''}`;
+ if(s==3){const o=ps.ord,sh=[3,0,4,2,1];h+=`<div class="card"><h2>Hasil karya: urutkan jalur refleks</h2><p class="mute">Ketuk tahapan sesuai urutan terjadinya.</p><div class="seq">${o.map((x,i)=>`<div class="rf on"><i></i><span>${i+1}. ${ARC[x]}</span></div>`).join('')}</div><div class="chips">${sh.filter(x=>!o.includes(x)).map(x=>`<button class="chip" data-o="${x}">${ARC[x]}</button>`).join('')}</div>`+
+ (o.length==5?(ps.ordOk?`<p style="color:var(--ok)"><b>Tepat.</b> Kesimpulan: refleks diproses di sumsum tulang belakang, sehingga lebih cepat daripada jalur sadar melalui otak. ${ps.hyp=='B'?'Hipotesismu (B) terbukti.':'Hipotesismu perlu direvisi; hipotesis B yang didukung bukti.'}</p>`:`<p style="color:var(--bad)">Urutan belum tepat.</p><button class="btn alt" data-r="1">Ulangi</button>`):'')+`</div>${ps.ordOk?'<button class="btn" data-go="4">Lanjut ke evaluasi</button>':''}`}
+ if(s==4){const n=Object.keys(ps.qa).length,sc=Object.entries(ps.qa).filter(([i,v])=>v==QZ[i][2]).length;h+=`<div class="card"><h2>Evaluasi</h2>${QZ.map((q,i)=>`<h3 style="margin-top:12px">${i+1}. ${q[0]}</h3>${q[1].map((t,j)=>{const a=ps.qa[i];const c=a==null?'':j==q[2]?'ok':a==j?'bad':'';return`<button class="opt ${c}" data-q="${i}.${j}">${t}</button>`}).join('')}`).join('')}${n==4?`<p><b>Skor: ${sc} dari 4.</b> ${sc==4?'Sempurna! Kamu menguasai alur refleks.':'Ulangi simulasi di langkah 3 untuk memperkuat pemahaman.'}</p><button class="btn alt" data-r="2">Ulangi PBL</button>`:''}</div>`}
+ $('#pp').innerHTML=h}
+function mark(n){ps.reach=n;if(ps.s==2){document.querySelectorAll('#pp .rf').forEach((e,i)=>e.classList.toggle('on',i<n))}}
+function run(){if(busy)return;setMode('body');busy=true;snap=true;mark(0);hot.visible=true;mark(1);
+ setTimeout(()=>{mark(2);fire(sens,0xff7a45,3.2,()=>{mark(3);ring.visible=true;
+  fire(spUp,0xffd166,3,()=>{});
+  setTimeout(()=>{ring.visible=false;mark(4);fire(mot,0x4ade80,3.2,()=>{mark(5);musc.visible=true;hot.visible=false;
+   setTimeout(()=>{musc.visible=false;mark(5);busy=false;renderP()},1400)})},700)})},700)}
+$('#pp').onclick=e=>{const d=e.target.dataset;
+ if(d.s!=null){ps.s=+d.s}else if(d.go){ps.done.add(ps.s);ps.s=+d.go}
+ else if(d.h){ps.hyp=d.h}else if(e.target.id=='run'){run();return}
+ else if(d.o){ps.ord.push(+d.o);if(ps.ord.length==5)ps.ordOk=ps.ord.join()=='0,1,2,3,4'}
+ else if(d.r){if(d.r==1){ps.ord=[];ps.ordOk=false}else{Object.assign(ps,{s:0,hyp:null,reach:0,ord:[],ordOk:false,qa:{},done:new Set()})}}
+ else if(d.q){const[i,j]=d.q.split('.');if(ps.qa[i]==null)ps.qa[i]=+j}
+ else return;renderP()};
+setMode('body');renderP();renderI();size();requestAnimationFrame(loop);
+</script></body></html>
